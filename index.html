@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#2b2540">
+  <link rel="icon" href="data:,">
+  <title>שומר המתג</title>
+</head>
+<body>
+  <div id="game"></div>
+  <div id="hud">
+    <div id="hearts"></div>
+    <div id="meterWrap"><span>קסם</span><div id="meter"><i></i></div></div>
+    <div id="xpWrap"><span id="lvl">רמה 1</span><div id="xp"><i></i></div></div>
+    <div id="bits"></div>
+  </div>
+  <div id="combo"></div>
+  <div id="toast"></div>
+  <div id="pad"><div id="stick"><div id="knob"></div></div></div>
+  <div id="btns">
+    <button id="bJump" type="button" data-k="jump">קפיצה</button>
+    <button id="bAtk" type="button" data-k="attack">מכה</button>
+    <button id="bDash" type="button" data-k="dash">דאש</button>
+    <button id="bMagic" type="button" data-k="magic">קסם</button>
+  </div>
+  <div id="gate" class="hide">
+    <h1>שער נעול</h1>
+    <p id="gateText"></p>
+    <p id="gateStats"></p>
+    <button id="gateOk" type="button">חזרה</button>
+  </div>
+  <div id="help">חיצים / WASD: תנועה · רווח: קפיצה · J: מכה (3 מכות) · K: דאש · L: קסם · חץ למטה + קפיצה: לרדת מפלטפורמה</div>
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>
