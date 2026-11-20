@@ -4,18 +4,20 @@
  */
 import * as Phaser from 'phaser';
 import { INK, ell, paper, rr, shade } from '../art/puppet';
-import { platformTex, put, registerRes, type Theme } from '../art/world';
+import { put, registerRes, type WorldArt } from '../art/world';
 import type { Fx } from './fx';
 import type { Hero } from './hero';
 import { enemyShot, Proj, type ProjDef } from './proj';
 import { GROUND_Y } from './levels';
 import { sfx } from '../sfx';
 
-export type ObsKind = 'spikes' | 'mover' | 'crumble' | 'spring' | 'belt' | 'fan' | 'beam' | 'cannon' | 'swinger';
+export type ObsKind = 'spikes' | 'mover' | 'crumble' | 'spring' | 'belt' | 'fan' | 'beam' | 'cannon' | 'swinger' | 'pillar' | 'wall' | 'lowbar' | 'sand' | 'geyser';
 export interface Obs {
   kind: ObsKind; x: number; y: number; w?: number;
   /** mover: how far it travels (dx, dy) and how fast; belt: dir; cannon: dir and shot kind; swinger: length. */
   dx?: number; dy?: number; speed?: number; dir?: 1 | -1; len?: number; pink?: boolean; phase?: number;
+  /** pillar, wall, lowbar: height. Colour wash for the generic ones. flip: hangs from the ceiling (spikes). */
+  h?: number; tint?: number; flip?: boolean;
 }
 
 function tex(scene: Phaser.Scene, key: string, w: number, h: number, draw: (c: CanvasRenderingContext2D) => void): string {
@@ -40,7 +42,7 @@ interface Live {
 
 export class Obstacles {
   private list: Live[] = [];
-  constructor(private scene: Phaser.Scene, private th: Theme, private hero: Hero, private hk: ObsHooks, defs: Obs[]) {
+  constructor(private scene: Phaser.Scene, private art: WorldArt, private hero: Hero, private hk: ObsHooks, defs: Obs[]) {
     for (const o of defs) this.make(o);
   }
 
@@ -54,10 +56,11 @@ export class Obstacles {
           c.fillStyle = '#3a3558'; c.fillRect(0, 21, n * 22, 3);
         }), 0.5, 1).setDepth(4);
         L.img.x = o.x + (o.w ?? 120) / 2; o.w = n * 22; L.img.x = o.x + o.w / 2;
+        if (o.flip) L.img.setFlipY(true).setOrigin(0.5, 0);
         break;
       }
       case 'mover': {
-        const w = o.w ?? 110, key = platformTex(s, this.th, w, 'plank', 7);
+        const w = o.w ?? 110, key = this.art.platform(s, w, 'plank', 7);
         L.img = put(s, o.x, o.y, key, 0, 0).setDepth(2);
         const ax0 = (o.dx ?? 120) / 2, ay0 = (o.dy ?? 0) / 2;
         const b = s.physics.add.image(o.x + ax0, o.y + ay0, 'spark').setVisible(false).setOrigin(0, 0).setDisplaySize(w, 14);
@@ -71,7 +74,7 @@ export class Obstacles {
       }
       case 'crumble': {
         const w = o.w ?? 100;
-        L.img = put(s, o.x, o.y - 4, platformTex(s, this.th, w, 'awning', 3), 0, 0).setDepth(2).setTint(0xd8c4a8);
+        L.img = put(s, o.x, o.y - 4, this.art.platform(s, w, 'awning', 3), 0, 0).setDepth(2).setTint(0xd8c4a8);
         const p = this.hk.platforms.create(o.x, o.y, 'spark') as Phaser.Physics.Arcade.Sprite;
         p.setOrigin(0, 0).setDisplaySize(w, 14).setVisible(false).refreshBody().setData('oneway', true);
         const b = p.body as Phaser.Physics.Arcade.StaticBody; b.checkCollision.down = false; b.checkCollision.left = false; b.checkCollision.right = false;
@@ -84,6 +87,8 @@ export class Obstacles {
           c.strokeStyle = '#c8c3d6'; c.lineWidth = 3; c.beginPath(); for (let i = 0; i < 4; i++) { c.moveTo(10, 24 - i * 5); c.lineTo(34, 21 - i * 5); } c.stroke();
           paper(c, () => rr(c, 3, 2, 38, 8, 4), '#e4572e', { lw: 2.6, y0: 2, y1: 10 }); paper(c, () => rr(c, 5, 25, 34, 5, 2), '#4a4a62', { lw: 2.2, y0: 25, y1: 30 });
         }), 0.5, 1).setDepth(4);
+        if (o.w && o.w > 44) L.img.setScale(o.w / 44, 1);
+        if (o.tint) L.img.setTint(o.tint);
         break;
       }
       case 'belt': {
@@ -123,6 +128,45 @@ export class Obstacles {
         L.fireT = 1 + (o.phase ?? 0);
         break;
       }
+      case 'pillar': {
+        const w = o.w ?? 70, h = o.h ?? 180;
+        const key = tex(s, 'pillar', 40, 40, (c) => { paper(c, () => rr(c, 3, 2, 34, 36, 9), '#9aa3c4', { lw: 3, y0: 2, y1: 38 }); c.fillStyle = 'rgba(255,255,255,0.35)'; c.fillRect(8, 6, 6, 28); });
+        L.img = put(s, o.x + w / 2, o.y + h / 2, key).setDepth(5).setDisplaySize(w, h);
+        if (o.tint) L.img.setTint(o.tint);
+        break;
+      }
+      case 'wall': {
+        const w = o.w ?? 44, h = o.h ?? 300;
+        const key = tex(s, 'wallbrick', 40, 40, (c) => { paper(c, () => rr(c, 2, 2, 36, 36, 4), '#c98f55', { lw: 3, y0: 2, y1: 38 }); c.strokeStyle = 'rgba(29,26,51,0.5)'; c.lineWidth = 2; c.beginPath(); c.moveTo(2, 14); c.lineTo(38, 14); c.moveTo(2, 26); c.lineTo(38, 26); c.moveTo(20, 2); c.lineTo(20, 14); c.moveTo(10, 14); c.lineTo(10, 26); c.moveTo(30, 14); c.lineTo(30, 26); c.stroke(); });
+        const t = s.add.tileSprite(o.x, o.y, w, h, key).setOrigin(0, 0).setDepth(5).setTileScale(0.5, 0.5);
+        const p = this.hk.platforms.create(o.x, o.y, 'spark') as Phaser.Physics.Arcade.Sprite;
+        p.setOrigin(0, 0).setDisplaySize(w, h).setVisible(false).refreshBody();
+        L.extra = [t]; L.stat = p; L.state = 0;
+        break;
+      }
+      case 'lowbar': {
+        const w = o.w ?? 180, h = o.h ?? 300;
+        const key = tex(s, 'lowrock', 40, 40, (c) => { paper(c, () => rr(c, 2, 2, 36, 36, 6), '#7d6f9a', { lw: 3, y0: 2, y1: 38 }); c.fillStyle = 'rgba(255,255,255,0.25)'; c.fillRect(6, 6, 10, 4); });
+        const t = s.add.tileSprite(o.x, o.y - h, w, h, key).setOrigin(0, 0).setDepth(5).setTileScale(0.5, 0.5);
+        const p = this.hk.platforms.create(o.x, o.y - h, 'spark') as Phaser.Physics.Arcade.Sprite;
+        p.setOrigin(0, 0).setDisplaySize(w, h).setVisible(false).refreshBody();
+        L.extra = [t];
+        break;
+      }
+      case 'sand': {
+        const w = o.w ?? 200;
+        const g = s.add.graphics().setDepth(3);
+        g.fillStyle(o.tint ?? 0xd9b46a, 1).fillRoundedRect(o.x, o.y - 6, w, 14, 6); g.lineStyle(3, 0x1d1a33, 1).strokeRoundedRect(o.x, o.y - 6, w, 14, 6);
+        g.fillStyle(0xffffff, 0.3).fillRect(o.x + 8, o.y - 4, w - 16, 3);
+        L.extra = [g];
+        break;
+      }
+      case 'geyser': {
+        const base = put(s, o.x, o.y, tex(s, 'vent', 46, 20, (c) => { paper(c, () => rr(c, 3, 6, 40, 14, 5), '#4a3a52', { lw: 2.8, y0: 6, y1: 20 }); c.fillStyle = '#ff7a2e'; c.beginPath(); ell(c, 23, 8, 12, 3); c.fill(); }), 0.5, 1).setDepth(4);
+        const jet = s.add.rectangle(o.x, o.y - 8, 34, 10, 0xff8a2e, 0.9).setOrigin(0.5, 1).setDepth(4);
+        L.img = base; L.extra = [jet];
+        break;
+      }
       case 'swinger': {
         const len = o.len ?? 190;
         const rope = s.add.rectangle(o.x, o.y, 4, len, 0x3a3558).setOrigin(0.5, 0).setDepth(4);
@@ -137,12 +181,12 @@ export class Obstacles {
   update(dt: number): void {
     const h = this.hero;
     const hr = new Phaser.Geom.Rectangle(h.body.x, h.body.y, h.body.width, h.body.height);
-    h.drift = 0;
+    h.drift = 0; h.stuck = false;
     for (const L of this.list) {
       const o = L.o; L.t += dt;
       switch (o.kind) {
         case 'spikes': {
-          const r = new Phaser.Geom.Rectangle(o.x + 4, o.y - 20, (o.w ?? 120) - 8, 20);
+          const r = new Phaser.Geom.Rectangle(o.x + 4, o.flip ? o.y : o.y - 20, (o.w ?? 120) - 8, 20);
           if (h.state !== 'dash' && Phaser.Geom.Intersects.RectangleToRectangle(hr, r)) this.hk.hurt(o.x + (o.w ?? 120) / 2, 1);
           break;
         }
@@ -164,7 +208,7 @@ export class Obstacles {
           break;
         }
         case 'spring': {
-          const w = 44;
+          const w = o.w ?? 44;
           if (h.body.velocity.y >= 0 && h.x > o.x - w / 2 - 6 && h.x < o.x + w / 2 + 6 && h.y > o.y - 16 && h.y < o.y + 10) {
             h.launch(-1010); sfx.dash(); this.hk.fx.ring(o.x, o.y - 10, 0xffd23f, 50, 300); this.scene.tweens.add({ targets: L.img, scaleY: (L.img as Phaser.GameObjects.Image).scaleY * 0.6, yoyo: true, duration: 90 });
           }
@@ -200,6 +244,31 @@ export class Obstacles {
             this.hk.fx.ring(o.x + dir * 40, o.y - 31, pink ? 0xff7ac8 : 0xffffff, 28, 200); sfx.swing(0);
             this.scene.tweens.add({ targets: L.img, scaleX: (L.img as Phaser.GameObjects.Image).scaleX * 0.9, yoyo: true, duration: 80 });
           }
+          break;
+        }
+        case 'pillar': {
+          const r = new Phaser.Geom.Rectangle(o.x + 4, o.y + 2, (o.w ?? 70) - 8, (o.h ?? 180) - 4);
+          if (h.state !== 'dash' && Phaser.Geom.Intersects.RectangleToRectangle(hr, r)) this.hk.hurt(o.x + (o.w ?? 70) / 2, 1);
+          break;
+        }
+        case 'wall': {
+          const p = L.stat as Phaser.Physics.Arcade.Sprite;
+          if (L.state === 0 && h.sizeState === 1 && (h.state === 'attack' || h.state === 'dash') && Math.abs(h.x - (o.x + (o.w ?? 44) / 2)) < 120 && h.y > o.y) {
+            L.state = 1; p.destroy(); (L.extra?.[0] as Phaser.GameObjects.TileSprite).destroy();
+            this.hk.fx.pop(o.x + (o.w ?? 44) / 2, o.y + (o.h ?? 300) - 60); this.hk.fx.pop(o.x + (o.w ?? 44) / 2, o.y + 120); sfx.kill();
+          }
+          break;
+        }
+        case 'sand': {
+          const w = o.w ?? 200;
+          if (h.x > o.x && h.x < o.x + w && Math.abs(h.y - o.y) < 14) h.stuck = true;
+          break;
+        }
+        case 'geyser': {
+          const per = o.speed ?? 3.4, u = (L.t % per) / per, jet = L.extra?.[0] as Phaser.GameObjects.Rectangle;
+          const on = u > 0.6 && u < 0.9, warn = u > 0.45 && u <= 0.6;
+          jet.setSize(34, on ? 230 : warn ? 30 + Math.sin(L.t * 50) * 10 : 8).setAlpha(on ? 0.95 : warn ? 0.7 : 0.25);
+          if (on) { const r = new Phaser.Geom.Rectangle(o.x - 17, o.y - 238, 34, 230); if (h.state !== 'dash' && Phaser.Geom.Intersects.RectangleToRectangle(hr, r)) this.hk.hurt(o.x, 1); }
           break;
         }
         case 'swinger': {

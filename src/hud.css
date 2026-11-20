@@ -65,3 +65,11 @@ body.playing #help { display: block; }
 #bJump { right: max(18px, env(safe-area-inset-right)); bottom: calc(max(22px, env(safe-area-inset-bottom)) + 104px); width: 78px; height: 78px; font-size: 16px; }
 #bDash { right: calc(max(18px, env(safe-area-inset-right)) + 94px); bottom: calc(max(22px, env(safe-area-inset-bottom)) + 84px); width: 62px; height: 62px; font-size: 14px; }
 #bMagic { right: calc(max(18px, env(safe-area-inset-right)) + 92px); bottom: calc(max(22px, env(safe-area-inset-bottom)) + 154px); width: 58px; height: 58px; font-size: 14px; }
+
+#bExtra { right: calc(max(18px, env(safe-area-inset-right)) + 182px); bottom: calc(max(22px, env(safe-area-inset-bottom)) + 96px); width: 58px; height: 58px; font-size: 13px; background: radial-gradient(circle at 35% 28%, #b9f0a0, #4a9e3a 60%, #1f5f1a); }
+#bExtra.hide { display: none !important; }
+
+#bulletbar { position: fixed; bottom: 4%; left: 50%; transform: translateX(-50%); width: min(40vw, 260px); display: flex; flex-direction: column; align-items: center; gap: 2px; z-index: 12; pointer-events: none; }
+#bulletbar span { font-weight: 900; font-size: 13px; color: #9bffc4; text-shadow: 0 2px 0 var(--ink); }
+#bulletbar div { width: 100%; height: 10px; border: 3px solid var(--ink); border-radius: 4px; background: #04140c; overflow: hidden; direction: ltr; }
+#bulletbar i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #2bff7a, #b8ffd8); }

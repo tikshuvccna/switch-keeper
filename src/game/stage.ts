@@ -2,11 +2,14 @@
  * A playable stage of an area: generated layout, paper-cut world art, the hero, the enemies, pickups, checkpoints and the exit.
  */
 import * as Phaser from 'phaser';
-import { Backdrop, groundTex, pickupTex, platformTex, propTex, put, THEMES, VIEW_H, VIEW_W } from '../art/world';
+import { Backdrop, pickupTex, put, VIEW_H, VIEW_W, worldArt, type WorldArt } from '../art/world';
+import '../art/worlds';
 import { combo, hudTick, hudUpdate, toast } from '../hud';
 import { clearInput, inp, take } from '../input';
 import { sfx } from '../sfx';
 import { Boss, type Hazard } from './boss';
+import { worldDef, type WorldDef } from './worlds';
+import { NO_ENV } from './hero';
 import { Enemy } from './enemy';
 import { enemyRig } from '../art/registry';
 import { Puppet } from '../art/puppet';
@@ -34,6 +37,7 @@ export class Stage extends Phaser.Scene {
   private exit!: Phaser.GameObjects.Image;
   private flags: Phaser.GameObjects.Image[] = [];
   private backdrop!: Backdrop;
+  art!: WorldArt;
   private checkpoint = -1;
   private asleepT = 0;
   private paused = false;
@@ -42,6 +46,11 @@ export class Stage extends Phaser.Scene {
   private storm = 0;
   private bossHook: ((dt: number) => void) | null = null;
   boss: Boss | null = null;
+  wd!: WorldDef;
+  /** World state: autoscroll speed, the beat clock, bullet time, wind and falling things. */
+  private scrollSpeed = 0; private autoDelay = 0; private beatN = -1; private raceT = 0; private bulletMeter = 100; private slow = 1;
+  private windT = 0; private fallT = 1; private lavaCool = 0; private ceilY = 64; private bulletBar: HTMLElement | null = null; private tintGlow: Phaser.GameObjects.Rectangle | null = null;
+  private chaseWall: Phaser.GameObjects.Rectangle | null = null;
   projs: Proj[] = [];
   private ora: { pup: Puppet; x: number; mark: Phaser.GameObjects.Text; asked: boolean } | null = null;
   private bars!: Phaser.GameObjects.Graphics;
@@ -60,24 +69,31 @@ export class Stage extends Phaser.Scene {
     this.ora = null;
     this.boss = null; this.hazards = []; this.arena = null; this.projs = []; this.orbs = [];
     this.clock = 0; this.kills = 0; this.bitsGot = 0; this.falls = 0; this.cardGot = false; this.card = null; this.hitstop = 0; this.storm = 0;
-    const th = THEMES[this.def.area.theme];
+    const art = (this.art = worldArt(this.def.world));
     const L = (this.layout = layoutFor(this.def));
     pickupTex(this); makeProjTextures(this);
     this.physics.world.setBounds(0, 0, L.length, 1000);
-    this.physics.world.gravity.y = 1750;
+    this.wd = this.def.boss ? { ...worldDef(this.def.world), mech: {}, extra: undefined, hint: 'הבוס מחכה! מכות, ירי ופארי על דברים ורודים.' } : worldDef(this.def.world);
+    this.physics.world.gravity.y = 1750 * (this.wd.mech.gravity ?? 1);
+    this.raceT = 0; this.beatN = -1; this.bulletMeter = 100; this.slow = 1; this.windT = 0; this.fallT = 1; this.lavaCool = 0; this.scrollSpeed = 0;
     this.cameras.main.setBounds(0, 0, L.length, VIEW_H);
-    this.backdrop = new Backdrop(this, th);
+    this.backdrop = new Backdrop(this, art);
     this.fx = new Fx(this);
 
     // ground and platforms
     this.platforms = this.physics.add.staticGroup();
     for (const [a, b] of L.grounds) {
-      put(this, a, GROUND_Y, groundTex(this, th, Math.round(b - a)), 0, 0).setDepth(2);
+      put(this, a, GROUND_Y, art.ground(this, Math.round(b - a)), 0, 0).setDepth(2);
       const g = this.platforms.create(a, GROUND_Y, 'spark') as Phaser.Physics.Arcade.Sprite;
       g.setOrigin(0, 0).setDisplaySize(b - a, 70).setVisible(false).refreshBody();
     }
+    for (const [a, b] of (L.ceilings ?? [])) {
+      put(this, a, -56, art.ground(this, Math.round(b - a)), 0, 0).setDepth(2).setFlipY(true);
+      const c = this.platforms.create(a, -56, 'spark') as Phaser.Physics.Arcade.Sprite;
+      c.setOrigin(0, 0).setDisplaySize(b - a, 120).setVisible(false).refreshBody();
+    }
     L.plats.forEach((p, i) => {
-      put(this, p.x, p.y - 4, platformTex(this, th, p.w, p.style, i), 0, 0).setDepth(2);
+      put(this, p.x, p.y - 4, art.platform(this, p.w, p.style, i), 0, 0).setDepth(2);
       const s = this.platforms.create(p.x, p.y, 'spark') as Phaser.Physics.Arcade.Sprite;
       s.setOrigin(0, 0).setDisplaySize(p.w, 14).setVisible(false).refreshBody().setData('oneway', true);
       const b = s.body as Phaser.Physics.Arcade.StaticBody;
@@ -86,8 +102,9 @@ export class Stage extends Phaser.Scene {
     });
     // props: far ones behind the hero, lamps in the front layer, darker and bigger
     for (const p of L.props) {
-      if (p.id === 'bunting') { put(this, p.x, p.y, propTex(this, th, 'bunting')).setDepth(1).setScale(1.6, 1.2); continue; }
-      const im = put(this, p.x, p.y, propTex(this, th, p.id), 0.5, 1).setDepth(p.id === 'lamp' ? 3 : 3);
+      if (p.id === 'bunting') { if (art.bunting) put(this, p.x, p.y, art.bunting(this)).setDepth(1).setScale(1.6, 1.2); continue; }
+      const list = art.props(this), key = p.id === 'lamp' ? art.lamp(this) : list[Math.abs(Math.round(p.x / 37)) % Math.max(1, list.length)];
+      const im = put(this, p.x, p.y, key, 0.5, 1).setDepth(3);
       if (p.id === 'lamp' && this.def.n % 2 === 0) im.setAlpha(0.95);
     }
     L.cps.forEach((x) => this.flags.push(put(this, x, GROUND_Y, 'flagpost', 0.4, 1).setDepth(3).setAlpha(0.6)));
@@ -98,6 +115,14 @@ export class Stage extends Phaser.Scene {
     this.hero = new Hero(this, 120, GROUND_Y - 2, save.hero);
     this.applyProgress();
     const h = this.hero;
+    const m = this.wd.mech;
+    h.env = { ...NO_ENV, gravity: m.gravity ?? 1, ice: !!m.ice, swim: !!m.swim, fly: !!m.fly, flip: !!m.flip, size: !!m.size, auto: false, sticky: !!m.sticky };
+    if (m.fly) { h.body.setAllowGravity(false); h.sprite.setPosition(160, 270); }
+    this.autoDelay = m.auto ? 3 : 0;
+    const bx = document.getElementById('bExtra') as HTMLElement;
+    if (this.wd.extra) { bx.classList.remove('hide'); bx.dataset.mode = this.wd.extra; bx.textContent = { flip: 'הפוך', size: 'גודל', bullet: 'זמן' }[this.wd.extra]; } else bx.classList.add('hide');
+    h.onFlip = () => { sfx.magic(); this.fx.ring(h.x, h.y - 40, 0x9b7bff, 90, 360); };
+    h.onSize = () => { sfx.level(); this.fx.ring(h.x, h.y - 40, 0x8be37d, 80, 360); };
     h.onJump = () => { sfx.jump(); this.fx.puff(h.x, h.y, 3); };
     h.onLand = () => { this.fx.puff(h.x - 8, h.y, 3); this.fx.puff(h.x + 8, h.y, 3); this.noise(h.x, 300); };
     h.onDash = () => { sfx.dash(); this.fx.puff(h.x, h.y - 10, 5); };
@@ -121,7 +146,7 @@ export class Stage extends Phaser.Scene {
       this.card = put(this, L.card[0], L.card[1], 'card').setDepth(6);
       this.tweens.add({ targets: this.card, y: L.card[1] - 8, yoyo: true, repeat: -1, duration: 700, ease: 'sine.inOut' });
     }
-    this.obstacles = new Obstacles(this, th, h, {
+    this.obstacles = new Obstacles(this, art, h, {
       fx: this.fx, platforms: this.platforms, spawnProj: (p) => this.projs.push(p),
       hurt: (fx, dmg) => { if (h.hurt(fx, dmg)) { sfx.hurt(); this.fx.hit(h.x, h.y - 40, 0xff6b6b); if (!save.calm) this.cameras.main.shake(120, 0.008); } },
     }, L.obs ?? []);
@@ -145,9 +170,24 @@ export class Stage extends Phaser.Scene {
     this.add.image(0, 0, 'vignette').setOrigin(0).setScrollFactor(0).setDepth(60);
     this.add.particles(0, 0, 'scrap', { x: { min: 0, max: VIEW_W }, y: { min: 0, max: VIEW_H }, lifespan: 6000, speedX: { min: -12, max: 6 }, speedY: { min: -4, max: 10 }, scale: { start: 0.5, end: 0.2 }, alpha: { start: 0.35, end: 0 }, quantity: 1, frequency: 450, tint: 0xfff0c8 }).setScrollFactor(0).setDepth(55);
 
-    this.cameras.main.startFollow(h.sprite, true, 0.1, 0.12);
-    this.cameras.main.setDeadzone(80, 40);
-    this.cameras.main.setFollowOffset(0, 40);
+    if (m.fly || m.chase) {
+      this.scrollSpeed = m.fly ? 110 : m.chase as number;
+      this.cameras.main.setScroll(0, 0);
+      if (m.chase) {
+        this.chaseWall = this.add.rectangle(0, 0, 130, VIEW_H, 0x140c2a, 0.92).setOrigin(0, 0).setScrollFactor(0).setDepth(50);
+        this.add.particles(0, 0, 'spark', { x: { min: 0, max: 120 }, y: { min: 0, max: VIEW_H }, speedX: { min: 40, max: 160 }, lifespan: 700, scale: { start: 0.5, end: 0 }, alpha: { start: 0.8, end: 0 }, frequency: 40, tint: [0xffe45c, 0xb79cff, 0xffffff] }).setScrollFactor(0).setDepth(51);
+      }
+    } else {
+      this.cameras.main.startFollow(h.sprite, true, 0.1, 0.12);
+      this.cameras.main.setDeadzone(80, 40);
+      this.cameras.main.setFollowOffset(0, 40);
+    }
+    if (m.bullet) {
+      this.bulletBar = document.createElement('div'); this.bulletBar.id = 'bulletbar'; this.bulletBar.innerHTML = '<span>זמן (B)</span><div><i></i></div>'; document.body.appendChild(this.bulletBar);
+      this.tintGlow = this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x2bff7a, 0).setOrigin(0, 0).setScrollFactor(0).setDepth(52);
+    }
+    this.events.once('shutdown', () => { this.bulletBar?.remove(); this.bulletBar = null; (document.getElementById('bExtra') as HTMLElement).classList.add('hide'); });
+    toast(this.wd.hint, true, 4);
     if (this.def.boss) this.setupBoss();
     this.events.on('jam', (x: number, y: number) => { sfx.jam(); this.fx.hit(x, y, 0xffe45c); this.fx.text(x, y - 20, 'שיבוש!', '#ffe45c', 26); });
     (window as unknown as { __sk: unknown }).__sk = { scene: this, hero: h, enemies: this.enemies, inp, save };
@@ -224,6 +264,7 @@ export class Stage extends Phaser.Scene {
     if (e.def.fly) { /* no ground collision */ } else this.physics.add.collider(e.sprite, this.platforms);
     e.onSpawn = (k, ex, ey) => { if (this.enemies.filter((o) => o.def.id === k && o.alive).length < 6) { const c = this.spawn(k, ex, ey, 90, true); c.body.setVelocity(e.dir * 160, -260); } };
     e.onSteal = (n) => this.steal(n);
+    if (this.wd.mech.fly || this.wd.mech.swim) e.wake();
     e.onShoot = (en, kind) => this.enemyFire(en, kind);
     this.enemies.push(e);
     return e;
@@ -366,15 +407,17 @@ export class Stage extends Phaser.Scene {
     if (this.hitstop > 0) { this.hitstop -= dt; this.physics.world.pause(); if (this.hitstop <= 0) this.physics.world.resume(); dt *= 0.1; }
     this.clock += dt;
     this.stormClock(dt);
+    this.worldTick(dt);
+    const sdt = dt * this.slow;                       // bullet time slows everything except the hero
 
     h.onOneWay = this.oneWay.some((p) => Math.abs(h.y - p.y) < 6 && h.x > p.x - 8 && h.x < p.x + p.displayWidth + 8);
     h.groundY = this.groundBelow(h.x, h.y);
     input.aim = input.mouseOn ? Math.sign(this.input.activePointer.worldX - h.x) : 0;
     h.update(dt);
 
-    for (const e of this.enemies) e.update(dt, h, this.enemies);
-    this.updateProjs(dt);
-    this.obstacles?.update(dt);
+    for (const e of this.enemies) { e.update(sdt, h, this.enemies); if (this.slow < 1) { e.body.setVelocityX(e.body.velocity.x * this.slow); if (e.def.fly) e.body.setVelocityY(e.body.velocity.y * this.slow); } }
+    this.updateProjs(sdt);
+    this.obstacles?.update(sdt);
     for (let i = this.enemies.length - 1; i >= 0; i--) if (!this.enemies[i].alive && !this.enemies[i].puppet.root.active) this.enemies.splice(i, 1);
 
     // the swing
@@ -422,7 +465,8 @@ export class Stage extends Phaser.Scene {
     // checkpoints
     this.layout.cps.forEach((x, i) => { if (h.x > x && i > this.checkpoint) { this.checkpoint = i; this.flags[i].setAlpha(1); toast('נקודת שמירה', true); sfx.bit(); this.fx.ring(x, GROUND_Y - 40, 0x4fd1c5, 60, 400); } });
     // pits and sleep
-    if (h.y > 700 && h.state !== 'asleep') {
+    if (this.wd.id === 'lava' && h.y > 560 && this.lavaCool <= 0 && h.state !== 'asleep') { this.lavaCool = 0.9; h.hurt(h.x, 1); h.body.setVelocityY(-1100); this.fx.ring(h.x, 520, 0xff7a2e, 90, 420); sfx.hurt(); toast('לבה! קופצים החוצה', false); }
+    if ((h.y > 700 || h.y < -260) && h.state !== 'asleep' && !this.wd.mech.fly) {
       this.falls++;
       if (--h.hp <= 0) { h.hp = 0; h.state = 'asleep'; } else { this.respawn(); toast('נפלת לבור! חוזרים לנקודת השמירה', false); sfx.hurt(); }
     }
@@ -467,9 +511,54 @@ export class Stage extends Phaser.Scene {
     for (const p of this.layout.plats) if (x > p.x && x < p.x + p.w && p.y >= y - 6) best = Math.min(best, p.y);
     return best === 900 ? GROUND_Y + 400 : best;
   }
+  /** The things a world does by itself: scrolling, the beat, bullet time, wind, falling rocks and meteors. */
+  private worldTick(dt: number): void {
+    const m = this.wd.mech, h = this.hero, cam = this.cameras.main;
+    this.raceT += dt; this.lavaCool = Math.max(0, this.lavaCool - dt);
+    // autoscroll (flying and chase): the camera runs on, the hero must keep up
+    if (this.scrollSpeed > 0 && h.state !== 'asleep') {
+      if (m.chase) this.scrollSpeed = Math.min(215, (m.chase as number) + this.raceT * 0.6);
+      const maxX = this.layout.length - VIEW_W;
+      cam.scrollX = Math.min(maxX, cam.scrollX + this.scrollSpeed * dt);
+      if (h.x < cam.scrollX + 24) { h.sprite.x = cam.scrollX + 24; if (m.chase) { if (h.hurt(cam.scrollX + 600, 1)) { sfx.hurt(); toast('הסערה תפסה אתכם! רוצו!', false); } h.sprite.x = cam.scrollX + 110; } }
+      if (h.x > cam.scrollX + VIEW_W - 30) h.sprite.x = cam.scrollX + VIEW_W - 30;
+      if (m.fly) { if (h.y < 60) { h.sprite.y = 60; h.body.setVelocityY(0); } if (h.y > 500) { h.sprite.y = 500; h.body.setVelocityY(0); } }
+      if (this.chaseWall) this.chaseWall.setAlpha(0.8 + Math.sin(this.raceT * 9) * 0.08);
+    }
+    // the beat (musical world): the hero runs by itself after a countdown, and the world pulses
+    if (m.auto) {
+      if (this.autoDelay > 0) { this.autoDelay -= dt; h.env.auto = false; if (this.autoDelay <= 0) { h.env.auto = true; toast('קדימה!', true); } }
+      const beat = Math.floor(this.raceT * (m.auto as number) / 60);
+      if (this.autoDelay <= 0 && beat !== this.beatN) {
+        this.beatN = beat;
+        if (beat % 4 === 0) { sfx.kick(); cam.zoomTo(1.025, 90); this.time.delayedCall(110, () => cam.zoomTo(1, 160)); } else if (beat % 2 === 0) sfx.hat(); else sfx.tick();
+        if (beat % 8 === 0) sfx.bass();
+      }
+    }
+    // bullet time (matrix): hold the button to slow everything but the hero
+    if (m.bullet) {
+      const want = input.bulletHeld && this.bulletMeter > 0;
+      this.slow = want ? 0.3 : 1;
+      this.bulletMeter = Phaser.Math.Clamp(this.bulletMeter + (want ? -42 : 14) * dt, 0, 100);
+      this.tintGlow?.setAlpha(want ? 0.13 : 0);
+      if (this.bulletBar) (this.bulletBar.querySelector('i') as HTMLElement).style.width = this.bulletMeter + '%';
+    }
+    // wind pushes the hero (desert, mountain, snow)
+    if (m.wind) { this.windT += dt; const gust = Math.sin(this.windT * 0.55) * Math.max(0, Math.sin(this.windT * 0.21 + 1)); h.drift += gust * (m.wind as number); }
+    // things that fall from the sky: meteors in space, rocks on the mountain, code in the matrix
+    const cx = cam.scrollX;
+    if (m.meteors) { this.fallT -= dt; if (this.fallT <= 0) { this.fallT = (m.meteors as number) * (0.7 + Math.random() * 0.6); const x = cx + 80 + Math.random() * (VIEW_W - 160); this.projs.push(new Proj(this, { tex: 'pk_meteor', vx: -90, vy: 380, life: 3, w: 34, h: 34, dmg: 1, owner: 'enemy', floor: true, spin: 3 }, x + 90, -40)); }
+    }
+    if (m.rain) { this.fallT -= dt; if (this.fallT <= 0) { this.fallT = m.rain === 'rock' ? 2.4 : 1.1; const x = m.rain === 'rock' ? h.x + (Math.random() - 0.5) * 320 : cx + 40 + Math.random() * (VIEW_W - 80); if (m.rain === 'rock') { this.fx.ring(x, GROUND_Y - 4, 0xffffff, 40, 600); this.time.delayedCall(600, () => { if (this.scene.isActive()) this.projs.push(new Proj(this, { tex: 'pk_rock', vx: 0, vy: 520, life: 2, w: 36, h: 36, dmg: 1, owner: 'enemy', floor: true, spin: 2 }, x, -30)); }); } else this.projs.push(new Proj(this, { tex: 'pk_codebolt', vx: 0, vy: 430, life: 2.2, w: 12, h: 40, dmg: 1, owner: 'enemy', floor: true }, x, -30)); } }
+  }
+
   private respawn(): void {
-    const x = this.checkpoint < 0 ? 120 : this.layout.cps[this.checkpoint] - 20;
-    this.hero.respawn(x, GROUND_Y - 150);
+    let x = this.checkpoint < 0 ? 120 : this.layout.cps[this.checkpoint] - 20;
+    const hh = this.hero;
+    if (hh.flipped) { hh.flipped = false; hh.body.setGravityY(0); }
+    if (hh.sizeState !== 0) { hh.sizeState = 0; hh.fixBody(); }
+    if (this.wd.mech.fly || this.wd.mech.chase) x = Math.max(x, this.cameras.main.scrollX + 160);
+    hh.respawn(x, this.wd.mech.fly ? 270 : GROUND_Y - 150);
   }
   /** The 10-15 minute rule: a soft warning, then the storm sends the player back to the lesson tower. */
   private stormClock(dt: number): void {

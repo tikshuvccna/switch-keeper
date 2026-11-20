@@ -11,6 +11,7 @@ import { LESSONS } from './learn/content';
 import { openLesson } from './learn/api';
 import { Menu } from './game/menu';
 import { Stage } from './game/stage';
+import { WorldView } from './worldview';
 import { showMenuScreen } from './ui';
 import { setVolumes } from './sfx';
 import { save } from './game/save';
@@ -29,9 +30,9 @@ const game = new Phaser.Game({
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
   physics: { default: 'arcade', arcade: { gravity: { x: 0, y: 1750 }, debug: new URLSearchParams(location.search).has('debug') } },
   render: { antialias: true, roundPixels: true },
-  scene: q.has('gallery') ? [Gallery] : q.has('stage') ? [Stage, Menu] : [Menu, Stage],
+  scene: q.has('gallery') ? [Gallery] : q.has('world') ? [WorldView] : q.has('stage') ? [Stage, Menu] : [Menu, Stage],
 });
 attach(game);
 (window as unknown as { __learn: unknown }).__learn = { openLesson, LESSONS };
 setVolumes(save.music, save.sound);
-if (!q.has('gallery') && !q.has('stage')) showMenuScreen(); else document.body.classList.add('playing');
+if (!q.has('gallery') && !q.has('world') && !q.has('stage')) showMenuScreen(); else document.body.classList.add('playing');

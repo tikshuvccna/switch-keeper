@@ -2,7 +2,7 @@
 import * as Phaser from 'phaser';
 import { heroRig } from '../art/registry';
 import { Puppet } from '../art/puppet';
-import { Backdrop, groundTex, pickupTex, propTex, put, THEMES } from '../art/world';
+import { Backdrop, pickupTex, put, worldArt } from '../art/world';
 import { heroChanged } from '../ui';
 import { save } from './save';
 
@@ -13,13 +13,13 @@ export class Menu extends Phaser.Scene {
   private t = 0;
   constructor() { super('menu'); }
   create(): void {
-    const th = THEMES.market;
+    const art = worldArt('market');
     pickupTex(this);
-    this.bd = new Backdrop(this, th);
-    put(this, 0, 480, groundTex(this, th, 1200), 0, 0).setDepth(2);
-    put(this, 150, 480, propTex(this, th, 'lamp'), 0.5, 1).setDepth(3);
-    put(this, 760, 480, propTex(this, th, 'crates'), 0.5, 1).setDepth(3);
-    put(this, 640, 480, propTex(this, th, 'barrel'), 0.5, 1).setDepth(3);
+    this.bd = new Backdrop(this, art);
+    put(this, 0, 480, art.ground(this, 1200), 0, 0).setDepth(2);
+    put(this, 150, 480, art.lamp(this), 0.5, 1).setDepth(3);
+    put(this, 760, 480, art.props(this)[0], 0.5, 1).setDepth(3);
+    put(this, 640, 480, art.props(this)[1], 0.5, 1).setDepth(3);
     this.add.image(0, 0, 'vignette').setOrigin(0).setDepth(60);
     this.makeHero();
     const on = () => this.makeHero();

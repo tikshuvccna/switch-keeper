@@ -15,10 +15,10 @@ export function hudUpdate(s: { hp: number; maxHp: number; meter: number; xp: num
   if (s.bits !== shownBits) { shownBits = s.bits; $('bits').textContent = String(s.bits); }
 }
 
-export function toast(text: string, good = true): void {
+export function toast(text: string, good = true, secs = 1.4): void {
   const t = $('toast');
   t.textContent = text; t.className = 'on ' + (good ? 'good' : 'bad');
-  toastT = 1.4;
+  toastT = secs;
 }
 export function combo(n: number): void {
   const c = $('combo');

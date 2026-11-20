@@ -7,16 +7,18 @@ export interface Inp {
   jumpP: boolean; attackP: boolean; dashP: boolean; magicP: boolean; upP: boolean;
   /** Held: the ranged shot. */
   shootHeld: boolean;
+  /** World buttons: flip gravity (G), change size (R), bullet time (hold B), and the stick/arrow held up (flying). */
+  flipP: boolean; sizeP: boolean; bulletHeld: boolean; up: boolean;
   /** The mouse is steering the facing: -1 left of the hero, 1 right of it, 0 unused. */
   aim: number;
   /** Pointer position in client pixels. */
   mx: number; my: number; mouseOn: boolean;
 }
-export const inp: Inp = { left: false, right: false, down: false, jumpHeld: false, jumpP: false, attackP: false, dashP: false, magicP: false, upP: false, shootHeld: false, aim: 0, mx: 0, my: 0, mouseOn: false };
-type Shot = 'jumpP' | 'attackP' | 'dashP' | 'magicP' | 'upP';
+export const inp: Inp = { left: false, right: false, down: false, jumpHeld: false, jumpP: false, attackP: false, dashP: false, magicP: false, upP: false, shootHeld: false, flipP: false, sizeP: false, bulletHeld: false, up: false, aim: 0, mx: 0, my: 0, mouseOn: false };
+type Shot = 'jumpP' | 'attackP' | 'dashP' | 'magicP' | 'upP' | 'flipP' | 'sizeP';
 export function take(k: Shot): boolean { const v = inp[k]; inp[k] = false; return v; }
 export function clearInput(): void {
-  inp.left = inp.right = inp.down = inp.jumpHeld = inp.jumpP = inp.attackP = inp.dashP = inp.magicP = inp.upP = inp.shootHeld = false;
+  inp.left = inp.right = inp.down = inp.jumpHeld = inp.jumpP = inp.attackP = inp.dashP = inp.magicP = inp.upP = inp.shootHeld = inp.flipP = inp.sizeP = inp.bulletHeld = inp.up = false;
 }
 
 const KEYS: Record<string, (down: boolean, repeat: boolean) => void> = {
@@ -24,8 +26,9 @@ const KEYS: Record<string, (down: boolean, repeat: boolean) => void> = {
   ArrowRight: (d) => { inp.right = d; }, KeyD: (d) => { inp.right = d; },
   ArrowDown: (d) => { inp.down = d; }, KeyS: (d) => { inp.down = d; },
   Space: (d, r) => { inp.jumpHeld = d; if (d && !r) inp.jumpP = true; },
-  ArrowUp: (d, r) => { inp.jumpHeld = d; if (d && !r) { inp.jumpP = true; inp.upP = true; } },
-  KeyW: (d, r) => { inp.jumpHeld = d; if (d && !r) { inp.jumpP = true; inp.upP = true; } },
+  ArrowUp: (d, r) => { inp.jumpHeld = d; inp.up = d; if (d && !r) { inp.jumpP = true; inp.upP = true; } },
+  KeyW: (d, r) => { inp.jumpHeld = d; inp.up = d; if (d && !r) { inp.jumpP = true; inp.upP = true; } },
+  KeyG: (d, r) => { if (d && !r) inp.flipP = true; }, KeyR: (d, r) => { if (d && !r) inp.sizeP = true; }, KeyB: (d) => { inp.bulletHeld = d; },
   KeyJ: (d, r) => { if (d && !r) inp.attackP = true; }, KeyZ: (d, r) => { if (d && !r) inp.attackP = true; },
   KeyK: (d) => { inp.shootHeld = d; }, KeyX: (d) => { inp.shootHeld = d; },
   ShiftLeft: (d, r) => { if (d && !r) inp.dashP = true; }, KeyC: (d, r) => { if (d && !r) inp.dashP = true; },
@@ -65,10 +68,10 @@ export function initInput(): void {
     let dx = e.clientX - x0, dy = e.clientY - y0;
     const d = Math.hypot(dx, dy);
     if (d > R) { dx *= R / d; dy *= R / d; }
-    inp.left = dx < -R * 0.3; inp.right = dx > R * 0.3; inp.down = dy > R * 0.55;
+    inp.left = dx < -R * 0.3; inp.right = dx > R * 0.3; inp.down = dy > R * 0.55; inp.up = dy < -R * 0.55;
     knob.style.transform = 'translate(calc(-50% + ' + dx + 'px), calc(-50% + ' + dy + 'px))';
   });
-  const end = (e: PointerEvent) => { if (e.pointerId !== id) return; id = -1; inp.left = inp.right = inp.down = false; base.classList.remove('on'); };
+  const end = (e: PointerEvent) => { if (e.pointerId !== id) return; id = -1; inp.left = inp.right = inp.down = inp.up = false; base.classList.remove('on'); };
   pad.addEventListener('pointerup', end);
   pad.addEventListener('pointercancel', end);
 
@@ -80,9 +83,10 @@ export function initInput(): void {
       else if (k === 'attack') inp.attackP = true;
       else if (k === 'dash') inp.dashP = true;
       else if (k === 'shoot') inp.shootHeld = true;
+      else if (k === 'extra') { const m = b.dataset.mode; if (m === 'flip') inp.flipP = true; else if (m === 'size') inp.sizeP = true; else if (m === 'bullet') inp.bulletHeld = true; }
       else if (k === 'magic') inp.magicP = true;
     });
-    const up = () => { if (k === 'jump') inp.jumpHeld = false; if (k === 'shoot') inp.shootHeld = false; };
+    const up = () => { if (k === 'jump') inp.jumpHeld = false; if (k === 'shoot') inp.shootHeld = false; if (k === 'extra') inp.bulletHeld = false; };
     b.addEventListener('pointerup', up);
     b.addEventListener('pointercancel', up);
     b.addEventListener('pointerleave', up);

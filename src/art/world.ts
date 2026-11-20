@@ -39,7 +39,7 @@ export const THEMES: Record<string, Theme> = {
   },
 };
 
-const mk = (w: number, h: number, draw: (c: CanvasRenderingContext2D) => void, res = 1): HTMLCanvasElement => {
+export const mk = (w: number, h: number, draw: (c: CanvasRenderingContext2D) => void, res = 1): HTMLCanvasElement => {
   const cv = document.createElement('canvas');
   cv.width = Math.ceil(w * res); cv.height = Math.ceil(h * res);
   const c = cv.getContext('2d') as CanvasRenderingContext2D;
@@ -50,16 +50,16 @@ const mk = (w: number, h: number, draw: (c: CanvasRenderingContext2D) => void, r
 const RES_OF = new Map<string, number>();
 /** Tell put() that a texture made elsewhere was drawn at this resolution multiple. */
 export function registerRes(key: string, res: number): void { RES_OF.set(key, res); }
-function tex(scene: Phaser.Scene, key: string, cv: HTMLCanvasElement, res = 1): string { if (!scene.textures.exists(key)) scene.textures.addCanvas(key, cv); RES_OF.set(key, res); return key; }
+export function tex(scene: Phaser.Scene, key: string, cv: HTMLCanvasElement, res = 1): string { if (!scene.textures.exists(key)) scene.textures.addCanvas(key, cv); RES_OF.set(key, res); return key; }
 /** Add an image of a generated texture at its design size (textures drawn at 2x are shown at half). */
 export function put(scene: Phaser.GameObjects.GameObject['scene'], x: number, y: number, key: string, ox = 0.5, oy = 0.5): Phaser.GameObjects.Image {
   return scene.add.image(x, y, key).setOrigin(ox, oy).setScale(1 / (RES_OF.get(key) ?? 1));
 }
-const lin = (c: CanvasRenderingContext2D, y0: number, y1: number, stops: [number, string][]) => { const g = c.createLinearGradient(0, y0, 0, y1); for (const [o, col] of stops) g.addColorStop(o, col); return g; };
-function soft(c: CanvasRenderingContext2D, blur = 8, oy = 4, a = 0.3): void { c.shadowColor = `rgba(24,10,56,${a})`; c.shadowBlur = blur; c.shadowOffsetY = oy; }
-function nosoft(c: CanvasRenderingContext2D): void { c.shadowColor = 'transparent'; c.shadowBlur = 0; c.shadowOffsetY = 0; }
+export const lin = (c: CanvasRenderingContext2D, y0: number, y1: number, stops: [number, string][]) => { const g = c.createLinearGradient(0, y0, 0, y1); for (const [o, col] of stops) g.addColorStop(o, col); return g; };
+export function soft(c: CanvasRenderingContext2D, blur = 8, oy = 4, a = 0.3): void { c.shadowColor = `rgba(24,10,56,${a})`; c.shadowBlur = blur; c.shadowOffsetY = oy; }
+export function nosoft(c: CanvasRenderingContext2D): void { c.shadowColor = 'transparent'; c.shadowBlur = 0; c.shadowOffsetY = 0; }
 /** Draw something at x and again one world-width to each side, so a layer wraps around without a seam. */
-function wrap(w: number, x: number, ew: number, f: (x: number) => void): void { f(x); if (x + ew > w) f(x - w); if (x < 0) f(x + w); }
+export function wrap(w: number, x: number, ew: number, f: (x: number) => void): void { f(x); if (x + ew > w) f(x - w); if (x < 0) f(x + w); }
 
 // ------------------------------------------------------------------ sky and layers
 export const VIEW_W = 960, VIEW_H = 540, LAYER_W = 1920;
@@ -187,17 +187,44 @@ function mid(scene: Phaser.Scene, th: Theme): string {
   }, RES), RES);
 }
 
+/** Everything a world looks like. Each world is a file in src/art/worlds/ (see README there) that registers one of these. */
+export interface WorldArt {
+  id: string; name: string;
+  /** A VIEW_W x VIEW_H texture: the sky (does not scroll). */
+  sky(scene: Phaser.Scene): string;
+  /** A LAYER_W x VIEW_H texture, seamless when wrapped (scrolls slowly). */
+  far(scene: Phaser.Scene): string;
+  /** Optional LAYER_W x VIEW_H texture drawn at 1.5x resolution (scrolls faster); seamless. */
+  mid?(scene: Phaser.Scene): string;
+  /** The ground strip of width w: the walkable lip on top, then filling (height 120). */
+  ground(scene: Phaser.Scene, w: number): string;
+  /** A one-way platform of width w. */
+  platform(scene: Phaser.Scene, w: number, style: 'plank' | 'awning', seed: number): string;
+  /** A tall lamp-like prop used at checkpoints and in the menu (origin bottom centre). */
+  lamp(scene: Phaser.Scene): string;
+  /** Scenery props standing on the ground (origin bottom centre). */
+  props(scene: Phaser.Scene): string[];
+  /** A banner hung across the street (optional). */
+  bunting?(scene: Phaser.Scene): string;
+  /** Ambient particles over the scene (snow, embers, bubbles, code...). The texture must exist. */
+  ambient?(scene: Phaser.Scene): Phaser.Types.GameObjects.Particles.ParticleEmitterConfig & { texture: string };
+  /** A VIEW_W x VIEW_H texture drawn over everything (water tint, scanlines, vignette colour...). */
+  overlay?(scene: Phaser.Scene): string;
+}
+export const WORLD_ART = new Map<string, WorldArt>();
+export function registerWorld(a: WorldArt): void { WORLD_ART.set(a.id, a); }
+
 export class Backdrop {
   private layers: { img: Phaser.GameObjects.Image[]; f: number; w: number }[] = [];
-  constructor(scene: Phaser.Scene, th: Theme) {
-    const s = scene.add.image(0, 0, sky(scene, th)).setOrigin(0).setScrollFactor(0).setDepth(-30);
+  constructor(scene: Phaser.Scene, art: WorldArt) {
+    const s = scene.add.image(0, 0, art.sky(scene)).setOrigin(0).setScrollFactor(0).setDepth(-30);
     s.setDisplaySize(VIEW_W, VIEW_H);
     const add = (key: string, f: number, depth: number, res = 1) => {
       const imgs = [0, 1].map(() => scene.add.image(0, 0, key).setOrigin(0).setScrollFactor(0).setDepth(depth).setScale(1 / res));
       this.layers.push({ img: imgs, f, w: LAYER_W });
     };
-    add(far(scene, th), 0.12, -20);
-    add(mid(scene, th), 0.45, -10, 1.5);
+    add(art.far(scene), 0.12, -20);
+    if (art.mid) add(art.mid(scene), 0.45, -10, 1.5);
   }
   update(camX: number): void {
     for (const l of this.layers) {
@@ -337,3 +364,18 @@ export function pickupTex(scene: Phaser.Scene): void {
   tex(scene, 'star', mk(28, 28, (c) => { c.fillStyle = '#fff'; c.beginPath(); for (let k = 0; k < 10; k++) { const a = k * Math.PI / 5 - Math.PI / 2, r2 = k % 2 ? 5 : 13; c.lineTo(14 + Math.cos(a) * r2, 14 + Math.sin(a) * r2); } c.closePath(); c.fill(); }));
   tex(scene, 'vignette', mk(VIEW_W, VIEW_H, (c) => { const g = c.createRadialGradient(VIEW_W / 2, VIEW_H / 2, 250, VIEW_W / 2, VIEW_H / 2, 620); g.addColorStop(0, 'rgba(20,8,48,0)'); g.addColorStop(1, 'rgba(20,8,48,0.5)'); c.fillStyle = g; c.fillRect(0, 0, VIEW_W, VIEW_H); }));
 }
+
+/** The dusk market (and the fallback for worlds without art yet), built from the functions above. */
+function themeArt(id: string, name: string, th: Theme): WorldArt {
+  return {
+    id, name, sky: (sc) => sky(sc, th), far: (sc) => far(sc, th), mid: (sc) => mid(sc, th),
+    ground: (sc, w) => groundTex(sc, th, w), platform: (sc, w, st, seed) => platformTex(sc, th, w, st, seed),
+    lamp: (sc) => propTex(sc, th, 'lamp'),
+    props: (sc) => (['crates', 'barrel', 'sign', 'flag'] as const).map((k) => propTex(sc, th, k)),
+    bunting: (sc) => propTex(sc, th, 'bunting'),
+  };
+}
+registerWorld(themeArt('market', 'שוק הצעקות', THEMES.market));
+registerWorld(themeArt('borders', 'גשרי הגבול', THEMES.borders));
+registerWorld(themeArt('tower', 'מגדל הסערה', THEMES.tower));
+export function worldArt(id: string): WorldArt { return WORLD_ART.get(id) ?? (WORLD_ART.get('market') as WorldArt); }
