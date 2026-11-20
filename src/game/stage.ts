@@ -52,6 +52,7 @@ export class Stage extends Phaser.Scene {
   private windT = 0; private fallT = 1; private lavaCool = 0; private ceilY = 64; private bulletBar: HTMLElement | null = null; private tintGlow: Phaser.GameObjects.Rectangle | null = null;
   private chaseWall: Phaser.GameObjects.Rectangle | null = null;
   projs: Proj[] = [];
+  private tipBubble: Phaser.GameObjects.Text | null = null;
   private ora: { pup: Puppet; x: number; mark: Phaser.GameObjects.Text; asked: boolean } | null = null;
   private bars!: Phaser.GameObjects.Graphics;
   private obstacles: Obstacles | null = null;
@@ -161,6 +162,12 @@ export class Stage extends Phaser.Scene {
       }
     }
     this.bars = this.add.graphics().setDepth(20);
+    this.tipBubble = null;
+    if ((L.orbs?.length ?? 0) > 0 && !save.paid.includes('tip.parry')) {                    // until the first parry: a hint above the first orb
+      const [ox, oy] = (L.orbs as [number, number][])[0];
+      this.tipBubble = this.add.text(ox, oy - 52, 'קפצו אל הכדור הוורוד,\nואז לחצו קפיצה שוב: פארי!', { fontFamily: 'Rubik, Arial', fontSize: '17px', fontStyle: '800', color: '#fff4dc', backgroundColor: '#c93a2a', align: 'center', padding: { x: 10, y: 5 } }).setOrigin(0.5, 1).setDepth(8).setVisible(false);
+      this.tweens.add({ targets: this.tipBubble, y: oy - 58, yoyo: true, repeat: -1, duration: 600, ease: 'sine.inOut' });
+    }
     for (const [ox, oy] of (L.orbs ?? [])) {
       const im = put(this, ox, oy, 'orb').setDepth(6);
       this.tweens.add({ targets: im, scale: im.scale * 1.12, yoyo: true, repeat: -1, duration: 500, ease: 'sine.inOut' });
@@ -228,6 +235,7 @@ export class Stage extends Phaser.Scene {
     for (const p of this.projs) if (p.alive && p.def.owner === 'enemy' && p.def.parry && Math.hypot(p.x - cx, p.y - cy) < 58) { p.destroy(); hit = p; break; }
     if (!hit) for (const o of this.orbs) if (o.cd <= 0 && Math.hypot(o.x - cx, o.y - cy) < 56) { o.cd = 0.9; o.img.setAlpha(0.3); hit = o; break; }
     if (!hit) return false;
+    if (!save.paid.includes('tip.parry')) { save.paid.push('tip.parry'); store(); this.tipBubble?.destroy(); this.tipBubble = null; toast('פארי! הכדורים הוורודים ממלאים את מד הקסם', true, 3); }
     sfx.card(); this.fx.ring(hit.x, hit.y, 0xff7ac8, 80, 360); this.fx.hit(hit.x, hit.y, 0xff7ac8, true); this.fx.text(hit.x, hit.y - 30, 'פארי!', '#ff7ac8', 26);
     h.meter = Math.min(100, h.meter + 22 * h.meterGain);
     return true;
@@ -475,6 +483,7 @@ export class Stage extends Phaser.Scene {
       if (this.asleepT === dt) toast('הגיבור נרדם... חוזרים לנקודת השמירה', false);
       if (this.asleepT > 1.4) { this.asleepT = 0; this.respawn(); }
     }
+    if (this.tipBubble) this.tipBubble.setVisible(Math.abs(h.x - this.tipBubble.x) < 520);
     // Ora
     const ora = this.ora;
     if (ora) {

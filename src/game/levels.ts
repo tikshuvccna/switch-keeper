@@ -91,6 +91,7 @@ export function layoutFor(def: StageDef): Layout {
   // the start: a safe pad with a lamp
   ground(0, 760); L.props.push({ id: 'lamp', x: 90, y: GROUND_Y }, { id: 'sign', x: 640, y: GROUND_Y });
   coins(330, GROUND_Y - 30, 5);
+  if (def.area.n === 1 && def.n === 1) { orb(440, 345); coins(405, 218, 5, 28); }          // the parry lesson: bounce off the pink orb to reach the bits
   x = 760;
 
   const ceilGaps: [number, number][] = [];
