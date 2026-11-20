@@ -1,0 +1,71 @@
+/* ---------- lessons, widgets and the three mini-games ---------- */
+#lessonsheet { color: var(--ink); position: fixed; inset: 0; z-index: 40; background: rgba(23, 19, 42, 0.82); display: flex; align-items: center; justify-content: center; padding: 8px; }
+#lessonsheet.hide { display: none; }
+.lesson { width: min(96vw, 820px); }
+.lsub { margin: 0 0 4px; font-size: 13px; font-weight: 700; opacity: 0.75; }
+.stitle { margin: 4px 0 8px; font-size: 22px; font-weight: 900; color: var(--navy); }
+.stext { margin: 6px 0; font-size: clamp(15px, 2.6vw, 18px); font-weight: 600; line-height: 1.6; }
+.widget { margin: 10px 0; background: #fff4dc; border: 3px solid var(--ink); border-radius: 12px; padding: 10px; }
+.widget:empty { display: none; }
+.checkbox { margin-top: 12px; background: #fff4dc; border: 3px dashed var(--stamp); border-radius: 12px; padding: 10px 12px; }
+.cq { margin: 0 0 8px; font-weight: 900; font-size: clamp(15px, 2.8vw, 19px); }
+.opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
+.opt { font: inherit; font-weight: 800; font-size: 16px; padding: 9px 12px; border: 3px solid var(--ink); border-radius: 10px; background: #fff; cursor: pointer; color: var(--ink); box-shadow: 0 3px 0 var(--ink); text-align: center; }
+.opt:hover:not(:disabled) { background: #f5ead2; }
+.opt.ok { background: #b8f0a5; } .opt.bad { background: #ffb6a8; }
+.cexp { margin: 8px 0 2px; font-weight: 700; font-size: 14px; color: #177a39; }
+.winfo { margin: 8px 0 2px; font-weight: 700; font-size: 15px; min-height: 22px; text-align: center; }
+.wkeytxt { margin: 6px 0 0; font-size: 12px; font-weight: 700; opacity: 0.7; text-align: center; }
+.row2 { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 8px 0; }
+.mini.on, .chip.on { background: #ffe9a0; }
+.chip { font: inherit; font-weight: 800; padding: 5px 14px; border: 3px solid var(--ink); border-radius: 999px; background: #fff; cursor: pointer; color: var(--ink); min-width: 42px; }
+.chip.ok { background: #b8f0a5; } .chip.bad { background: #ffb6a8; }
+.macrow { display: flex; gap: 6px; justify-content: center; }
+.byte { font: inherit; font-weight: 900; font-size: clamp(18px, 4vw, 28px); font-family: "Courier New", monospace; padding: 8px 10px; border: 3px solid var(--ink); border-radius: 8px; cursor: pointer; color: var(--ink); }
+.byte.oui { background: #9be7d6; } .byte.ser { background: #ffd98a; }
+.wkey { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 8px 0; }
+.k { font-size: 12px; font-weight: 800; padding: 2px 10px; border-radius: 999px; border: 2px solid var(--ink); } .k.oui { background: #9be7d6; } .k.ser { background: #ffd98a; }
+.castgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
+.castcard { font: inherit; border: 3px solid var(--ink); border-radius: 10px; background: #fff; padding: 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--ink); }
+.castcard b { font-family: "Courier New", monospace; font-size: 15px; } .castcard span { font-size: 13px; font-weight: 800; }
+.castcard.u { background: #cfe9ff; } .castcard.m { background: #ffe0a8; } .castcard.b { background: #ffc9c0; }
+.framestrip { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; direction: ltr; }
+.slot2 { min-height: 40px; border: 3px dashed #8a6f45; border-radius: 6px; display: grid; place-items: center; font-size: 12px; font-weight: 800; text-align: center; padding: 2px; }
+.slot2.on { background: #b8f0a5; border-style: solid; border-color: var(--ink); }
+.framepool { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin: 8px 0; }
+.hubbox { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 14px 10px; border-radius: 10px; background: #efe0c0; transition: background 0.2s; }
+.hubbox.crash { background: #ffb6a8; animation: shake2 0.15s 6; }
+.pcA, .pcB, .hubM { font-weight: 800; padding: 10px 14px; border: 3px solid var(--ink); border-radius: 8px; background: #fff; } .hubM { background: #f2b134; }
+@keyframes shake2 { 50% { transform: translateX(4px); } }
+.ports { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 6px; }
+.port { border: 3px solid var(--ink); border-radius: 8px; background: #fff; padding: 6px 2px; text-align: center; display: flex; flex-direction: column; font-size: 13px; font-weight: 800; transition: background 0.2s; }
+.port.lit { background: #b8f0a5; } .port.src { background: #ffe9a0; }
+.pickrow { display: flex; gap: 6px; align-items: center; justify-content: center; margin: 4px 0; font-weight: 800; }
+.mactable { font-family: "Courier New", monospace; font-size: 13px; font-weight: 700; background: #17132a; color: #9be7d6; padding: 6px 10px; border-radius: 8px; margin-top: 6px; }
+.topowrap { background: #fff; border: 3px solid var(--ink); border-radius: 10px; padding: 4px; }
+.topo { width: 100%; height: auto; max-height: 36vh; display: block; }
+/* mini-games */
+.gamehost { min-height: 220px; }
+.gtitle { margin: 0; font-size: 20px; color: var(--navy); } .ghint { margin: 2px 0 6px; font-size: 13px; font-weight: 700; opacity: 0.8; }
+.gbar { display: flex; gap: 10px; justify-content: space-between; font-size: 14px; background: var(--navy); color: #ffe9a0; padding: 4px 12px; border-radius: 8px; margin-bottom: 8px; }
+.gbody { position: relative; }
+.glevels { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin: 8px 0; }
+.glevel { font: inherit; border: 3px solid var(--ink); border-radius: 12px; background: #fff4dc; padding: 10px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; color: var(--ink); box-shadow: 0 4px 0 var(--ink); }
+.glevel b { font-size: 20px; color: var(--stamp); } .glevel span { font-size: 12px; font-weight: 700; } .glevel i { font-style: normal; font-weight: 900; }
+.glevel.lock { opacity: 0.5; cursor: default; } .glevel.done { background: #eaffd9; }
+.slip { background: #fff; border: 3px solid var(--ink); border-radius: 8px; padding: 8px 12px; font-weight: 800; text-align: center; margin-bottom: 8px; }
+.ltrb { font-family: "Courier New", monospace; color: var(--stamp); }
+.lane { position: relative; height: 120px; background: repeating-linear-gradient(90deg, #6d5a45 0 22px, #5a4a38 22px 44px); border: 3px solid var(--ink); border-radius: 8px; overflow: hidden; direction: ltr; }
+.parcel { position: absolute; top: 24px; left: 0; width: 170px; height: 72px; font: inherit; border: 3px solid var(--ink); border-radius: 6px; background: linear-gradient(180deg, #e7c48e, #c79a5d); cursor: pointer; display: grid; place-items: center; box-shadow: 0 4px 0 rgba(0, 0, 0, 0.3); }
+.parcel span { font-family: "Courier New", monospace; font-weight: 800; font-size: 13px; background: #fff; border: 2px solid var(--ink); padding: 2px 4px; }
+.parcel::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 10px; margin-left: -5px; background: rgba(29, 26, 51, 0.25); }
+.parcel.good { background: #b8f0a5; } .parcel.bad { background: #ffb6a8; }
+.frame { background: #fff; border: 3px solid var(--ink); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; align-items: center; gap: 4px; font-weight: 800; min-height: 78px; }
+.frame span { font-family: "Courier New", monospace; font-size: 17px; } .frame i { font-style: normal; font-size: 13px; color: var(--stamp); }
+.frame.ok { background: #b8f0a5; } .frame.no { background: #ffb6a8; }
+.mactable2 { font-size: 13px; font-weight: 800; background: #17132a; color: #9be7d6; padding: 6px 10px; border-radius: 8px; margin: 8px 0; display: flex; gap: 10px; flex-wrap: wrap; }
+.trow { font-family: "Courier New", monospace; background: rgba(155, 231, 214, 0.15); padding: 0 6px; border-radius: 4px; }
+.acts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.gend { text-align: center; padding: 24px 10px; border: 3px dashed var(--stamp); border-radius: 12px; background: #fff4dc; } .gend.win { border-color: #2f9e4a; background: #eaffd9; }
+.gend h3 { margin: 0 0 4px; font-size: 26px; color: var(--stamp); } .gend.win h3 { color: #177a39; }
+.gamehost .slot { margin: 6px 4px; display: inline-block; }

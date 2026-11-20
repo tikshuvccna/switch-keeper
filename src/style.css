@@ -37,7 +37,6 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #17132a; fon
 #bJump { right: max(18px, env(safe-area-inset-right)); bottom: calc(max(22px, env(safe-area-inset-bottom)) + 104px); width: 78px; height: 78px; background: var(--mint); font-size: 16px; }
 #bDash { right: calc(max(18px, env(safe-area-inset-right)) + 104px); bottom: max(22px, env(safe-area-inset-bottom)); width: 70px; height: 70px; background: #ff8fb8; font-size: 15px; }
 #bMagic { right: calc(max(18px, env(safe-area-inset-right)) + 94px); bottom: calc(max(22px, env(safe-area-inset-bottom)) + 84px); width: 66px; height: 66px; background: #6fd3ff; font-size: 15px; }
-body.touch #pad, body.touch #btns button { display: block; }
 #help { position: fixed; bottom: 6px; left: 0; right: 0; text-align: center; font-size: 12px; opacity: 0.6; pointer-events: none; padding: 0 8px; }
 body.touch #help { display: none; }
 

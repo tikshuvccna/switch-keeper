@@ -9,7 +9,7 @@ function tone(f0: number, f1: number, dur: number, type: OscillatorType, vol: nu
   const a = ctx(); if (!a) return;
   const o = a.createOscillator(), g = a.createGain(), t = a.currentTime;
   o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
-  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  g.gain.setValueAtTime(Math.max(0.0002, vol * sfxVol), t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur + 0.02);
 }
 export const sfx = {
@@ -23,6 +23,14 @@ export const sfx = {
   card: () => { tone(600, 1200, 0.2, 'triangle', 0.08); setTimeout(() => tone(900, 1800, 0.25, 'triangle', 0.08), 120); },
   magic: () => { tone(100, 700, 0.4, 'sawtooth', 0.09); tone(60, 40, 0.5, 'square', 0.08); },
   jam: () => tone(150, 400, 0.2, 'square', 0.06),
+  click: () => tone(700, 500, 0.05, 'square', 0.04),
+  buy: () => { tone(600, 1200, 0.1, 'triangle', 0.07); setTimeout(() => tone(900, 1500, 0.12, 'triangle', 0.07), 90); },
+  nope: () => tone(160, 100, 0.15, 'square', 0.06),
   level: () => { tone(500, 1000, 0.15, 'triangle', 0.08); setTimeout(() => tone(700, 1400, 0.2, 'triangle', 0.08), 130); },
 };
 export function unlockAudio(): void { ctx(); }
+
+/** Master volumes (0..1); the effects use sound, music is not used by this module yet. */
+let sfxVol = 1;
+export function setVolumes(_music: number, sound: number): void { sfxVol = sound; }
+export const volume = (): number => sfxVol;

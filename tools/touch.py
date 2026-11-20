@@ -12,7 +12,7 @@ with sync_playwright() as p:
     for (w, h) in [(320, 568), (360, 640), (740, 360), (1200, 760)]:
         pg = b.new_context(viewport={"width": w, "height": h}, has_touch=True, is_mobile=True).new_page()
         pg.on("pageerror", lambda e: print("ERR", e))
-        pg.goto("http://localhost:5213/", wait_until="domcontentloaded")
+        pg.goto("http://localhost:5213/?stage=market.1", wait_until="domcontentloaded")
         pg.wait_for_function("() => window.__sk", timeout=30000); pg.wait_for_timeout(700)
         print(w, h, pg.evaluate(OV))
         pg.screenshot(path=f"{sys.argv[1]}_{w}x{h}.png")

@@ -4,14 +4,15 @@ const $ = (id: string) => document.getElementById(id) as HTMLElement;
 let shownHearts = '', shownMeter = -1, shownXp = -1, shownBits = -1, shownLvl = 0, toastT = 0, comboT = 0;
 
 export function hudUpdate(s: { hp: number; maxHp: number; meter: number; xp: number; xpNext: number; level: number; bits: number }): void {
-  const h = '♥'.repeat(Math.max(0, s.hp)) + '<u>' + '♥'.repeat(Math.max(0, s.maxHp - s.hp)) + '</u>';
-  if (h !== shownHearts) { shownHearts = h; $('hearts').innerHTML = h; }
+  const h = Array.from({ length: s.maxHp }, (_, i) => '<i class="seal' + (i < s.hp ? ' on' : '') + '"></i>').join('');
+  const key = h + s.hp;
+  if (key !== shownHearts) { shownHearts = key; $('hearts').innerHTML = h; }
   const m = Math.round(s.meter);
   if (m !== shownMeter) { shownMeter = m; ($('meter').firstElementChild as HTMLElement).style.width = m + '%'; $('meter').classList.toggle('full', m >= 100); }
   const x = Math.round((s.xp / s.xpNext) * 100);
   if (x !== shownXp) { shownXp = x; ($('xp').firstElementChild as HTMLElement).style.width = x + '%'; }
   if (s.level !== shownLvl) { shownLvl = s.level; $('lvl').textContent = 'רמה ' + s.level; }
-  if (s.bits !== shownBits) { shownBits = s.bits; $('bits').textContent = s.bits + ' ביטים'; }
+  if (s.bits !== shownBits) { shownBits = s.bits; $('bits').textContent = String(s.bits); }
 }
 
 export function toast(text: string, good = true): void {
