@@ -14,7 +14,7 @@ import type { EnemyCtx, EnemyRig } from '../art/types';
 import type { Hero } from './hero';
 
 export type Arch = 'brawler' | 'flyer' | 'hopper' | 'thief' | 'warden';
-export interface EnemyDef { id: string; arch: Arch; hp: number; speed: number; chase: number; xp: number; touch?: number; splits?: boolean; fly?: boolean; guard?: boolean }
+export interface EnemyDef { id: string; arch: Arch; hp: number; speed: number; chase: number; xp: number; touch?: number; splits?: boolean; fly?: boolean; guard?: boolean; awake?: boolean }
 export const ENEMIES: Record<string, EnemyDef> = {
   crate: { id: 'crate', arch: 'brawler', hp: 3, speed: 70, chase: 120, xp: 10 },
   imp: { id: 'imp', arch: 'flyer', hp: 2, speed: 150, chase: 150, xp: 10, fly: true },
@@ -22,6 +22,11 @@ export const ENEMIES: Record<string, EnemyDef> = {
   flood: { id: 'flood', arch: 'hopper', hp: 3, speed: 150, chase: 150, xp: 12 },
   tagthief: { id: 'tagthief', arch: 'thief', hp: 3, speed: 150, chase: 230, xp: 14 },
   warden: { id: 'warden', arch: 'warden', hp: 6, speed: 55, chase: 95, xp: 20, guard: true },
+  hornhawk: { id: 'hornhawk', arch: 'flyer', hp: 2, speed: 160, chase: 160, xp: 14, fly: true },
+  drifter: { id: 'drifter', arch: 'flyer', hp: 2, speed: 140, chase: 140, xp: 14, fly: true, awake: true },
+  gatewarden: { id: 'gatewarden', arch: 'warden', hp: 7, speed: 50, chase: 90, xp: 22, guard: true },
+  stormling: { id: 'stormling', arch: 'flyer', hp: 2, speed: 170, chase: 170, xp: 16, fly: true, awake: true },
+  echoknight: { id: 'echoknight', arch: 'brawler', hp: 4, speed: 80, chase: 135, xp: 20 },
 };
 
 /** A plain stand-in while a creature's real rig is not drawn yet. */
@@ -69,7 +74,7 @@ export class Enemy {
     const b = this.sprite.body as Phaser.Physics.Arcade.Body;
     b.setSize(w, h);
     if (this.rig.body.origin === 'feet') b.setOffset(4 - w / 2, 8 - h); else b.setOffset(4 - w / 2, 4 - h / 2);
-    if (this.def.fly) { b.setAllowGravity(false); this.asleep = true; this.state = 'sleep'; }
+    if (this.def.fly) { b.setAllowGravity(false); if (!this.def.awake) { this.asleep = true; this.state = 'sleep'; } else this.state = 'move'; }
     this.dir = Math.random() < 0.5 ? 1 : -1;
     this.puppet = new Puppet(scene, this.rig.parts, this.rig.id);
     this.puppet.setDepth(8);

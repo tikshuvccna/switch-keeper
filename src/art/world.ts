@@ -25,6 +25,18 @@ export const THEMES: Record<string, Theme> = {
     stone: ['#e9d3b0', '#c9a97d', '#8d6a52'], wood: ['#b9814f', '#8a5a34'], accent: ['#e4572e', '#1fa89a', '#f2b134', '#6b3fa0'],
     fog: '#7d5a9c',
   },
+  borders: {
+    id: 'borders', sky: ['#1c3b5a', '#3f8fa6', '#cfeedd'], sun: '#effff4', haze: '#a8dccf',
+    far: ['#5a86ad', '#37608a'], window: '#ffe28a',
+    stone: ['#d3e3d9', '#9db8ac', '#5a7474'], wood: ['#a9794a', '#7a5430'], accent: ['#2f6fd1', '#e4572e', '#f2b134', '#1fa89a'],
+    fog: '#4f7fa8',
+  },
+  tower: {
+    id: 'tower', sky: ['#120f26', '#3a2f66', '#8a7bd0'], sun: '#dcd8ff', haze: '#6f61b8',
+    far: ['#4f4888', '#2f2966'], window: '#ffd23f',
+    stone: ['#bdb7dc', '#847cb4', '#463f78'], wood: ['#8a6a5a', '#5e4638'], accent: ['#6b3fa0', '#2f6fd1', '#e4572e', '#ffd23f'],
+    fog: '#3a2f66',
+  },
 };
 
 const mk = (w: number, h: number, draw: (c: CanvasRenderingContext2D) => void, res = 1): HTMLCanvasElement => {

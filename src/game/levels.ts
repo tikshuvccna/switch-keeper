@@ -23,8 +23,8 @@ export interface AreaDef { id: string; n: number; name: string; theme: string; b
 export const AREAS: AreaDef[] = [
   { id: 'market', n: 1, name: 'שוק הצעקות', theme: 'market', blurb: 'כל קול נשמע בכל מקום. כאן לומדים על כתובות MAC ועל הרכזת.', pool: ['crate', 'imp', 'dup'], lesson: 'l14', boss: 'hubhog' },
   { id: 'street', n: 2, name: 'רחוב המתג', theme: 'market', blurb: 'דלתות ממוספרות וחבילות עם תוויות. כאן לומדים איך המתג מנתב.', pool: ['flood', 'tagthief', 'warden', 'dup'], lesson: 'l15', boss: 'flooder' },
-  { id: 'borders', n: 3, name: 'גשרי הגבול', theme: 'market', blurb: 'גבולות בין שכונות. כאן סופרים אזורי התנגשות ואזורי Broadcast.', pool: ['crate', 'imp', 'tagthief', 'warden'], lesson: 'l16', boss: 'borderking' },
-  { id: 'tower', n: 4, name: 'מגדל הסערה', theme: 'market', blurb: 'סערת ה-Broadcast מחכה בפסגה.', pool: ['crate', 'imp', 'flood', 'tagthief', 'warden'], lesson: '', boss: 'storm' },
+  { id: 'borders', n: 3, name: 'גשרי הגבול', theme: 'borders', blurb: 'גבולות בין שכונות. כאן סופרים אזורי התנגשות ואזורי Broadcast.', pool: ['hornhawk', 'gatewarden', 'drifter', 'crate', 'tagthief'], lesson: 'l16', boss: 'borderking' },
+  { id: 'tower', n: 4, name: 'מגדל הסערה', theme: 'tower', blurb: 'סערת ה-Broadcast מחכה בפסגה.', pool: ['stormling', 'echoknight', 'hornhawk', 'gatewarden', 'flood'], lesson: '', boss: 'storm' },
 ];
 export interface StageDef { id: string; area: AreaDef; n: number; title: string; seed: number; boss: boolean }
 export const STAGES: StageDef[] = AREAS.flatMap((a) => [1, 2, 3, 4].map((n) => ({
