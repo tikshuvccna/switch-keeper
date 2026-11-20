@@ -80,9 +80,12 @@ export class Puppet {
       n.setRotation(v[0] ?? 0).setPosition(r[0] + (v[1] ?? 0), r[1] + (v[2] ?? 0)).setScale(v[3] ?? 1, v[4] ?? 1);
     }
   }
+  private base: number | null = null;
+  /** A permanent colour wash (for variants of a creature). */
+  setBaseTint(c: number | null): void { this.base = c; for (const im of Object.values(this.tint)) { if (c === null) im.clearTint(); else im.setTint(c); } }
   /** Flash the whole puppet white (a hit), or clear it. */
   flash(on: boolean): void {
-    for (const im of Object.values(this.tint)) { if (on) im.setTintFill(0xffffff); else im.clearTint(); }
+    for (const im of Object.values(this.tint)) { if (on) im.setTintFill(0xffffff); else if (this.base === null) im.clearTint(); else im.setTint(this.base); }
   }
   setAlpha(a: number): void { this.root.setAlpha(a); }
   setDepth(d: number): void { this.root.setDepth(d); }

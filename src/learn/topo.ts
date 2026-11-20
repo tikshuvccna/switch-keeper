@@ -103,14 +103,14 @@ const sv = (tag: string, attrs: Record<string, string | number>, parent?: Elemen
   return e as SVGElement;
 };
 /** Draw a diagram. colorBy 'collision' colours the links by collision domain, 'broadcast' colours the devices by broadcast domain. */
-export function drawTopo(t: Topo, colorBy: 'none' | 'collision' | 'broadcast' = 'none', w = 520, h = 260): SVGElement {
+export function drawTopo(t: Topo, colorBy: 'none' | 'collision' | 'broadcast' = 'none', w = 520, h = 260, hot?: Set<number>): SVGElement {
   const svg = sv('svg', { viewBox: `0 0 ${w} ${h}`, class: 'topo' });
   const col = colorBy === 'collision' ? collisionOf(t) : null;
   const bc = colorBy === 'broadcast' ? broadcastOf(t) : null;
   t.links.forEach(([a, b], i) => {
     const A = t.nodes[a], B = t.nodes[b];
     sv('line', { x1: A.x, y1: A.y, x2: B.x, y2: B.y, stroke: '#1d1a33', 'stroke-width': 9, 'stroke-linecap': 'round' }, svg);
-    sv('line', { x1: A.x, y1: A.y, x2: B.x, y2: B.y, stroke: col ? domainColor(col[i]) : '#d9b98a', 'stroke-width': 5, 'stroke-linecap': 'round' }, svg);
+    sv('line', { x1: A.x, y1: A.y, x2: B.x, y2: B.y, stroke: hot ? (hot.has(i) ? '#ff3d7f' : '#d9b98a') : col ? domainColor(col[i]) : '#d9b98a', 'stroke-width': hot && hot.has(i) ? 7 : 5, 'stroke-linecap': 'round' }, svg);
   });
   for (const n of t.nodes) {
     const fill = bc && n.t !== 'rt' ? domainColor(bc.get(n.id) ?? 0) : { pc: '#fff4dc', sw: '#7fb7e8', hub: '#f2b134', rt: '#d4402e' }[n.t];
@@ -123,3 +123,9 @@ export function drawTopo(t: Topo, colorBy: 'none' | 'collision' | 'broadcast' = 
   return svg;
 }
 export const TOPO_KEY = 'מקרא: מחשב · מתג (כחול) · רכזת (כתום, משושה) · נתב (אדום, עגול)';
+
+/** A tiny fixed topology: one device in the middle with four PCs around it (used by the hub-versus-switch picture). */
+export function star(kind: 'hub' | 'sw'): Topo {
+  const nodes: TNode[] = [{ id: 0, t: kind, x: 130, y: 100 }, { id: 1, t: 'pc', x: 40, y: 40, label: 'A' }, { id: 2, t: 'pc', x: 220, y: 40, label: 'B' }, { id: 3, t: 'pc', x: 40, y: 170, label: 'C' }, { id: 4, t: 'pc', x: 220, y: 170, label: 'D' }];
+  return { nodes, links: [[0, 1], [0, 2], [0, 3], [0, 4]] };
+}

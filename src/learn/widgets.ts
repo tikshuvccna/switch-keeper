@@ -2,6 +2,7 @@
 import { sfx } from '../sfx';
 import { broadcastCount, collisionCount, drawTopo, randomTopo, TOPO_KEY, type Topo } from './topo';
 import type { WidgetId } from './content';
+import { hubvs, layers, nic } from './widgets2';
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] => {
   const e = document.createElement(tag);
@@ -15,7 +16,7 @@ function shuffle<T>(a: T[]): T[] { const o = a.slice(); for (let i = o.length - 
 export function mountWidget(id: WidgetId, host: HTMLElement): void {
   host.textContent = '';
   if (id === 'none') return;
-  ({ mac, cast, frame, switchSim, csma, domains } as Record<string, (h: HTMLElement) => void>)[id === 'switch' ? 'switchSim' : id](host);
+  ({ mac, cast, frame, switchSim, csma, domains, nic, layers, hubvs } as Record<string, (h: HTMLElement) => void>)[id === 'switch' ? 'switchSim' : id](host);
 }
 
 // ------------------------------------------------------------------ a MAC address: tap a byte to see its bits

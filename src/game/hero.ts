@@ -24,13 +24,21 @@ export class Hero {
   state: HeroState = 'free';
   attackStage = 0; attackT = 0; comboCount = 0; magicT = 0;
   readonly hitSet = new Set<unknown>();
+  /** Fire a shot (set by the stage). */
+  onShoot?: () => void;
+  /** Is there something pink to parry right now? Returns true when the parry happened. */
+  onParry?: () => boolean;
   onMagic?: () => void; onJump?: () => void; onSwing?: (stage: number) => void; onLand?: (v: number) => void; onDash?: () => void;
   /** Extra damage and reach from skills and gear (set by the stage from the save). */
   dmgBonus = 0; reachBonus = 0; speedBonus = 0; meterGain = 1;
   onOneWay = false;
+  onDoubleJump?: () => void;
   /** Ground height under the hero (for the shadow); set by the stage. */
   groundY = 480;
 
+  airJumps = 1; private shootCool = 0;
+  /** Sideways drift from a conveyor belt (set each frame by the stage). */
+  drift = 0;
   private comboWindow = 0; private queued = false;
   private coyote = 0; private buffer = 0;
   private dashT = 0; private dashCool = 0; private dropT = 0; private hurtT = 0;
@@ -83,6 +91,8 @@ export class Hero {
     if (this.hp <= 0) { this.hp = 0; this.state = 'asleep'; }
     return true;
   }
+  /** Shot upward by a spring: keeps control and gets the air jump back. */
+  launch(vy: number): void { this.body.setVelocityY(vy); this.airJumps = 1; this.squash = 0.3; }
   respawn(x: number, y: number): void {
     this.hp = this.maxHp; this.invuln = 1.6; this.state = 'free'; this.meter = Math.min(this.meter, 50); this.comboCount = 0;
     this.sprite.setPosition(x, y); this.body.setVelocity(0, 0); this.body.setAllowGravity(true);
@@ -99,13 +109,14 @@ export class Hero {
     const b = this.body, def = this.def;
     this.time += dt;
     this.invuln = Math.max(0, this.invuln - dt);
-    this.dashCool = Math.max(0, this.dashCool - dt);
+    this.dashCool = Math.max(0, this.dashCool - dt); this.shootCool = Math.max(0, this.shootCool - dt);
     this.dropT = Math.max(0, this.dropT - dt);
     this.comboWindow = Math.max(0, this.comboWindow - dt);
     if (this.comboWindow === 0 && this.state !== 'attack') this.comboCount = 0;
     const grounded = this.grounded;
     if (!this.wasGrounded && grounded && this.lastVy > 380) { this.squash = -Math.min(0.28, this.lastVy / 3200); this.onLand?.(this.lastVy); }
     this.wasGrounded = grounded; this.lastVy = b.velocity.y;
+    if (grounded) this.airJumps = 1;
     this.coyote = grounded ? 0.1 : Math.max(0, this.coyote - dt);
     if (take('jumpP')) this.buffer = 0.12; else this.buffer = Math.max(0, this.buffer - dt);
     const wantAttack = take('attackP'), wantDash = take('dashP'), wantMagic = take('magicP');
@@ -144,13 +155,18 @@ export class Hero {
         if (inp.left) dir -= 1;
         if (inp.right) dir += 1;
         if (dir !== 0) this.facing = dir > 0 ? 1 : -1;
+        if (inp.aim !== 0 && (wantAttack || inp.shootHeld)) this.facing = inp.aim > 0 ? 1 : -1;       // the mouse turns the hero toward the pointer
         const target = dir * speed, v = b.velocity.x, a = 2600 * dt * (grounded ? 1 : 0.55);
         b.setVelocityX(v < target ? Math.min(target, v + a) : Math.max(target, v - a));
         if (dir === 0 && grounded) b.setVelocityX(Math.abs(v) < 30 ? 0 : v * 0.8);
         if (this.buffer > 0 && this.coyote > 0) {
           if (inp.down && this.onOneWay) { this.dropT = 0.28; this.buffer = 0; this.coyote = 0; }
           else { b.setVelocityY(def.jump); this.buffer = 0; this.coyote = 0; this.squash = 0.22; this.onJump?.(); }
+        } else if (this.buffer > 0 && !grounded) {
+          if (this.onParry?.()) { b.setVelocityY(def.jump * 0.92); this.buffer = 0; this.airJumps = 1; this.squash = 0.25; }          // a parry: bounce and get the double jump back
+          else if (this.airJumps > 0) { this.airJumps--; b.setVelocityY(def.jump * 0.9); this.buffer = 0; this.squash = 0.25; this.onJump?.(); this.onDoubleJump?.(); }
         }
+        if (inp.shootHeld && this.shootCool <= 0) { this.shootCool = def.shot.rate; this.onShoot?.(); }
         if (!inp.jumpHeld && b.velocity.y < -200) b.setVelocityY(b.velocity.y * 0.6);              // a short hop when the button is released
         if (def.glide && inp.jumpHeld && b.velocity.y > 60 && !grounded) b.setVelocityY(Math.max(60, b.velocity.y - 2400 * dt));   // Beacon floats down slowly
         if (wantAttack) this.startAttack(0);
@@ -163,6 +179,7 @@ export class Hero {
         }
       }
     }
+    if (this.drift && this.grounded && this.state === 'free') this.sprite.x += this.drift * dt;
     this.view(dt);
   }
 

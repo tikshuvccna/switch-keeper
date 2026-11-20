@@ -48,6 +48,8 @@ const mk = (w: number, h: number, draw: (c: CanvasRenderingContext2D) => void, r
   return cv;
 };
 const RES_OF = new Map<string, number>();
+/** Tell put() that a texture made elsewhere was drawn at this resolution multiple. */
+export function registerRes(key: string, res: number): void { RES_OF.set(key, res); }
 function tex(scene: Phaser.Scene, key: string, cv: HTMLCanvasElement, res = 1): string { if (!scene.textures.exists(key)) scene.textures.addCanvas(key, cv); RES_OF.set(key, res); return key; }
 /** Add an image of a generated texture at its design size (textures drawn at 2x are shown at half). */
 export function put(scene: Phaser.GameObjects.GameObject['scene'], x: number, y: number, key: string, ox = 0.5, oy = 0.5): Phaser.GameObjects.Image {

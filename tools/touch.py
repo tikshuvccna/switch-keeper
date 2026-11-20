@@ -3,10 +3,10 @@ import sys
 from playwright.sync_api import sync_playwright
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 CHROME = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
-OV = """() => { const ids = ['bJump','bAtk','bDash','bMagic','hud']; const R = ids.map(i => [i, document.getElementById(i).getBoundingClientRect()]); const out = [];
+OV = """() => { const ids = ['bJump','bAtk','bShoot','bDash','bMagic','hud']; const R = ids.map(i => [i, document.getElementById(i).getBoundingClientRect()]); const out = [];
   for (let a = 0; a < R.length; a++) for (let b = a + 1; b < R.length; b++) { const p = R[a][1], q = R[b][1]; if (p.left < q.right && p.right > q.left && p.top < q.bottom && p.bottom > q.top) out.push(R[a][0] + '/' + R[b][0]); }
   const off = R.filter(([i, r]) => r.left < 0 || r.right > innerWidth || r.top < 0 || r.bottom > innerHeight).map(r => r[0]);
-  return { overlap: out, off, buttons: R.slice(0, 4).map(([i, r]) => i + ':' + Math.round(r.width)).join(' ') }; }"""
+  return { overlap: out, off, buttons: R.slice(0, 5).map(([i, r]) => i + ':' + Math.round(r.width)).join(' ') }; }"""
 with sync_playwright() as p:
     b = p.chromium.launch(executable_path=CHROME, headless=True, args=["--headless=new", "--use-angle=d3d11", "--enable-gpu"])
     for (w, h) in [(320, 568), (360, 640), (740, 360), (1200, 760)]:

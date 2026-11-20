@@ -69,3 +69,14 @@
 .gend { text-align: center; padding: 24px 10px; border: 3px dashed var(--stamp); border-radius: 12px; background: #fff4dc; } .gend.win { border-color: #2f9e4a; background: #eaffd9; }
 .gend h3 { margin: 0 0 4px; font-size: 26px; color: var(--stamp); } .gend.win h3 { color: #177a39; }
 .gamehost .slot { margin: 6px 4px; display: inline-block; }
+
+.pic { width: 100%; max-width: 420px; display: block; margin: 0 auto; }
+.layerstack { display: flex; flex-direction: column; gap: 3px; max-width: 420px; margin: 0 auto; }
+.layer { font: inherit; font-weight: 800; padding: 6px 10px; border: 3px solid var(--ink); border-radius: 8px; background: #fff; cursor: pointer; color: var(--ink); text-align: center; }
+.layer.hot { background: #ffe9a0; box-shadow: 0 0 0 3px var(--stamp); }
+.hubvs { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.hcell { text-align: center; } .hcell b { display: block; margin-bottom: 2px; color: var(--navy); }
+.hholder svg { width: 260px; max-width: 44vw; height: auto; background: #fff; border: 3px solid var(--ink); border-radius: 8px; }
+.keybox { margin: 10px 0 4px; background: #fff7d6; border: 3px solid var(--navy); border-radius: 10px; padding: 8px 14px; }
+.keybox b { color: var(--stamp); }
+.keybox ul { margin: 4px 0 0; padding-inline-start: 20px; font-weight: 700; line-height: 1.6; }

@@ -57,6 +57,7 @@ export function openLesson(id: string, areaTitle: string, done: (r: LessonResult
     const body = frame('שיעור ' + L.num + ': ' + L.title, areaTitle + ' · צעד ' + (n + 1) + ' מתוך ' + L.steps.length);
     body.append(el('h3', 'stitle', s.title));
     for (const t of s.text) body.append(el('p', 'stext', t));
+    if (s.bullets?.length) { const kb = el('div', 'keybox'); kb.append(el('b', '', 'הרעיון המרכזי')); const ul = el('ul'); for (const t of s.bullets) ul.append(el('li', '', t)); kb.append(ul); body.append(kb); }
     const w = el('div', 'widget'); body.append(w); mountWidget(s.widget, w);
     body.append(checkBlock(s.check, () => steps(n + 1)));
   };

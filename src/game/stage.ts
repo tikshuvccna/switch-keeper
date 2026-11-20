@@ -8,6 +8,11 @@ import { clearInput, inp, take } from '../input';
 import { sfx } from '../sfx';
 import { Boss, type Hazard } from './boss';
 import { Enemy } from './enemy';
+import { enemyRig } from '../art/registry';
+import { Puppet } from '../art/puppet';
+import { Obstacles } from './obstacles';
+import { enemyShot, makeProjTextures, Proj, type ProjDef, type ShotKind } from './proj';
+import { inp as input } from '../input';
 import { Fx } from './fx';
 import { Hero } from './hero';
 import { GROUND_Y, layoutFor, stageById, type Layout, type StageDef } from './levels';
@@ -37,6 +42,11 @@ export class Stage extends Phaser.Scene {
   private storm = 0;
   private bossHook: ((dt: number) => void) | null = null;
   boss: Boss | null = null;
+  projs: Proj[] = [];
+  private ora: { pup: Puppet; x: number; mark: Phaser.GameObjects.Text; asked: boolean } | null = null;
+  private bars!: Phaser.GameObjects.Graphics;
+  private obstacles: Obstacles | null = null;
+  private orbs: { img: Phaser.GameObjects.Image; x: number; y: number; cd: number }[] = [];
   private hazards: Hazard[] = [];
   private arena: { x0: number; x1: number; locked: boolean } | null = null;
   private bossBar: HTMLElement | null = null;
@@ -47,11 +57,12 @@ export class Stage extends Phaser.Scene {
 
   create(): void {
     this.enemies = []; this.bits = []; this.hearts = []; this.oneWay = []; this.flags = []; this.checkpoint = -1; this.asleepT = 0; this.paused = false;
-    this.boss = null; this.hazards = []; this.arena = null;
+    this.ora = null;
+    this.boss = null; this.hazards = []; this.arena = null; this.projs = []; this.orbs = [];
     this.clock = 0; this.kills = 0; this.bitsGot = 0; this.falls = 0; this.cardGot = false; this.card = null; this.hitstop = 0; this.storm = 0;
     const th = THEMES[this.def.area.theme];
     const L = (this.layout = layoutFor(this.def));
-    pickupTex(this);
+    pickupTex(this); makeProjTextures(this);
     this.physics.world.setBounds(0, 0, L.length, 1000);
     this.physics.world.gravity.y = 1750;
     this.cameras.main.setBounds(0, 0, L.length, VIEW_H);
@@ -97,8 +108,11 @@ export class Stage extends Phaser.Scene {
       this.noise(h.x, 360);
     };
     h.onMagic = () => this.magic();
+    h.onShoot = () => this.heroShoot();
+    h.onParry = () => this.tryParry();
+    h.onDoubleJump = () => { this.fx.ring(h.x, h.y - 6, 0xffffff, 40, 260); this.fx.puff(h.x, h.y, 4); };
     this.physics.add.collider(h.sprite, this.platforms, undefined, (_h, p) => !((p as Phaser.Physics.Arcade.Sprite).getData('oneway') && h.dropping));
-    for (const s of L.spawns) this.spawn(s.kind, s.x, s.y, s.range ?? 110);
+    for (const s of L.spawns) this.spawn(s.kind, s.x, s.y, s.range ?? 110, false, !!s.elite);
 
     // pickups
     for (const [x, y] of L.bits) this.addBit(x, y);
@@ -106,6 +120,26 @@ export class Stage extends Phaser.Scene {
     if (L.card && !save.cards.includes(this.def.area.id + '.' + this.def.n)) {
       this.card = put(this, L.card[0], L.card[1], 'card').setDepth(6);
       this.tweens.add({ targets: this.card, y: L.card[1] - 8, yoyo: true, repeat: -1, duration: 700, ease: 'sine.inOut' });
+    }
+    this.obstacles = new Obstacles(this, th, h, {
+      fx: this.fx, platforms: this.platforms, spawnProj: (p) => this.projs.push(p),
+      hurt: (fx, dmg) => { if (h.hurt(fx, dmg)) { sfx.hurt(); this.fx.hit(h.x, h.y - 40, 0xff6b6b); if (!save.calm) this.cameras.main.shake(120, 0.008); } },
+    }, L.obs ?? []);
+    // Ora, the teacher: she waits near the start of stage 1 and opens the lesson of the area
+    if (this.def.n === 1 && this.def.area.lesson) {
+      const rig = enemyRig('ora');
+      if (rig) {
+        const pup = new Puppet(this, rig.parts, 'ora');
+        pup.setDepth(7);
+        const mark = this.add.text(560, GROUND_Y - 130, 'שיעור ↑', { fontFamily: 'Rubik, Arial', fontSize: '18px', fontStyle: '900', color: '#fff4dc', backgroundColor: '#c93a2a', padding: { x: 8, y: 3 } }).setOrigin(0.5).setDepth(8);
+        this.ora = { pup, x: 560, mark, asked: false };
+      }
+    }
+    this.bars = this.add.graphics().setDepth(20);
+    for (const [ox, oy] of (L.orbs ?? [])) {
+      const im = put(this, ox, oy, 'orb').setDepth(6);
+      this.tweens.add({ targets: im, scale: im.scale * 1.12, yoyo: true, repeat: -1, duration: 500, ease: 'sine.inOut' });
+      this.orbs.push({ img: im, x: ox, y: oy, cd: 0 });
     }
     // overlays: the vignette, and floating dust specks in the air
     this.add.image(0, 0, 'vignette').setOrigin(0).setScrollFactor(0).setDepth(60);
@@ -127,11 +161,70 @@ export class Stage extends Phaser.Scene {
     h.setMaxHp(h.def.hp + b.hp, true);
   }
 
-  private spawn(kind: string, x: number, y: number, range: number, copy = false): Enemy {
-    const e = new Enemy(this, kind, x, y, range, copy);
+  // ------------------------------------------------------------------ shots and parry
+  private heroShoot(): void {
+    const h = this.hero, sh = h.def.shot;
+    const def: ProjDef = { tex: sh.tex, vx: h.facing * sh.speed, vy: 0, life: sh.life, w: sh.w, h: sh.h, dmg: sh.dmg + (h.dmgBonus > 0 ? 0.25 * h.dmgBonus : 0), owner: 'hero', pierce: sh.pierce, spin: sh.tex === 'shot_twine' ? 9 : 0 };
+    this.projs.push(new Proj(this, def, h.x + h.facing * 34, h.y - h.def.bodyH * 0.55));
+    sfx.swing(0); this.fx.puff(h.x + h.facing * 28, h.y - h.def.bodyH * 0.55, 1);
+  }
+  private enemyFire(e: Enemy, kind: ShotKind): void {
+    const h = this.hero, dir = h.x >= e.x ? 1 : -1;
+    const from = { x: e.x + dir * 22, y: e.rig.body.origin === 'feet' ? e.y - e.rig.body.h * 0.62 : e.y };
+    if (kind === 'bolt') {                                              // a lightning strike: marked on the floor, then it falls
+      const bx = h.x + (Math.random() - 0.5) * 60;
+      this.fx.ring(bx, GROUND_Y - 4, 0xffe45c, 46, 520);
+      this.time.delayedCall(520, () => { if (this.scene.isActive()) this.projs.push(new Proj(this, enemyShot('bolt', 1, from, h), bx, -30)); });
+      return;
+    }
+    const def = enemyShot(kind, dir, from, { x: h.x, y: h.y });
+    this.projs.push(new Proj(this, def, from.x, kind === 'wave' ? GROUND_Y - 16 : from.y));
+    this.fx.ring(from.x, from.y, def.parry ? 0xff7ac8 : 0xffffff, 30, 220);
+  }
+  /** Jump again into something pink: parry it. Returns true if a parry happened. */
+  private tryParry(): boolean {
+    const h = this.hero, cx = h.x, cy = h.y - h.def.bodyH * 0.5;
+    let hit: { x: number; y: number } | null = null;
+    for (const p of this.projs) if (p.alive && p.def.owner === 'enemy' && p.def.parry && Math.hypot(p.x - cx, p.y - cy) < 58) { p.destroy(); hit = p; break; }
+    if (!hit) for (const o of this.orbs) if (o.cd <= 0 && Math.hypot(o.x - cx, o.y - cy) < 56) { o.cd = 0.9; o.img.setAlpha(0.3); hit = o; break; }
+    if (!hit) return false;
+    sfx.card(); this.fx.ring(hit.x, hit.y, 0xff7ac8, 80, 360); this.fx.hit(hit.x, hit.y, 0xff7ac8, true); this.fx.text(hit.x, hit.y - 30, 'פארי!', '#ff7ac8', 26);
+    h.meter = Math.min(100, h.meter + 22 * h.meterGain);
+    return true;
+  }
+  private updateProjs(dt: number): void {
+    const h = this.hero, cam = this.cameras.main;
+    for (const o of this.orbs) { o.cd = Math.max(0, o.cd - dt); if (o.cd <= 0 && o.img.alpha < 1) o.img.setAlpha(1); }
+    const hr = new Phaser.Geom.Rectangle(h.body.x, h.body.y, h.body.width, h.body.height);
+    for (const p of this.projs) {
+      p.step(dt, h.x, h.y - 40);
+      if (p.x < cam.scrollX - 300 || p.x > cam.scrollX + VIEW_W + 300 || p.y > 700) p.alive = false;
+      if (p.def.floor && p.y > GROUND_Y - 6) { p.alive = false; if (p.def.tex === 'pk_drop') this.fx.puff(p.x, GROUND_Y - 6, 2); }
+      if (!p.alive) continue;
+      const r = p.rect();
+      if (p.def.owner === 'hero') {
+        for (const e of this.enemies) {
+          if (!e.alive || p.hits.has(e) || !Phaser.Geom.Intersects.RectangleToRectangle(r, e.rect())) continue;
+          p.hits.add(e); this.damage(e, p.def.dmg, 140, 0); h.meter = Math.min(100, h.meter + 2 * h.meterGain);
+          if (p.hits.size > (p.def.pierce ?? 0)) { p.alive = false; break; }
+        }
+        const b = this.boss;
+        if (p.alive && b && b.alive && !p.hits.has(b) && Phaser.Geom.Intersects.RectangleToRectangle(r, b.rect())) {
+          p.hits.add(b); const res = b.hit(p.def.dmg); this.fx.hit(p.x, p.y, 0xffffff, false); if (res !== 'blocked') { sfx.hit(); h.meter = Math.min(100, h.meter + 1.5 * h.meterGain); } if (p.hits.size > (p.def.pierce ?? 0)) p.alive = false;
+        }
+      } else if (h.state !== 'dash' && Phaser.Geom.Intersects.RectangleToRectangle(r, hr) && h.hurt(p.x, p.def.dmg)) {
+        sfx.hurt(); this.fx.hit(h.x, h.y - 40, 0xff6b6b); if (!save.calm) this.cameras.main.shake(120, 0.008); p.alive = false;
+      }
+    }
+    for (let i = this.projs.length - 1; i >= 0; i--) if (!this.projs[i].alive) { this.projs[i].img.destroy(); this.projs.splice(i, 1); }
+  }
+
+  private spawn(kind: string, x: number, y: number, range: number, copy = false, elite = false): Enemy {
+    const e = new Enemy(this, kind, x, y, range, copy, elite);
     if (e.def.fly) { /* no ground collision */ } else this.physics.add.collider(e.sprite, this.platforms);
     e.onSpawn = (k, ex, ey) => { if (this.enemies.filter((o) => o.def.id === k && o.alive).length < 6) { const c = this.spawn(k, ex, ey, 90, true); c.body.setVelocity(e.dir * 160, -260); } };
     e.onSteal = (n) => this.steal(n);
+    e.onShoot = (en, kind) => this.enemyFire(en, kind);
     this.enemies.push(e);
     return e;
   }
@@ -249,7 +342,7 @@ export class Stage extends Phaser.Scene {
     this.kills++; sfx.kill();
     this.fx.pop(e.x, e.y - e.rig.body.h * 0.5);
     this.time.delayedCall(360, () => e.destroy());
-    const n = e.def.guard ? 4 : Math.random() < 0.7 ? 1 : 0;
+    const n = e.elite ? 10 : e.def.guard ? 4 : Math.random() < 0.7 ? 1 : 0;
     for (let i = 0; i < n; i++) this.addBit(e.x, e.y - 30, true);
     this.hero.meter = Math.min(100, this.hero.meter + 5 * this.hero.meterGain);
     this.gainXp(e.def.xp);
@@ -276,9 +369,12 @@ export class Stage extends Phaser.Scene {
 
     h.onOneWay = this.oneWay.some((p) => Math.abs(h.y - p.y) < 6 && h.x > p.x - 8 && h.x < p.x + p.displayWidth + 8);
     h.groundY = this.groundBelow(h.x, h.y);
+    input.aim = input.mouseOn ? Math.sign(this.input.activePointer.worldX - h.x) : 0;
     h.update(dt);
 
     for (const e of this.enemies) e.update(dt, h, this.enemies);
+    this.updateProjs(dt);
+    this.obstacles?.update(dt);
     for (let i = this.enemies.length - 1; i >= 0; i--) if (!this.enemies[i].alive && !this.enemies[i].puppet.root.active) this.enemies.splice(i, 1);
 
     // the swing
@@ -334,6 +430,25 @@ export class Stage extends Phaser.Scene {
       this.asleepT += dt;
       if (this.asleepT === dt) toast('הגיבור נרדם... חוזרים לנקודת השמירה', false);
       if (this.asleepT > 1.4) { this.asleepT = 0; this.respawn(); }
+    }
+    // Ora
+    const ora = this.ora;
+    if (ora) {
+      ora.pup.apply(enemyRig('ora')!.pose({ state: 'idle', time: this.time.now / 1000, t: 0, vx: 0, vy: 0, grounded: true, hp: 1, phase: 0, variant: 0 }));
+      ora.pup.root.setPosition(ora.x, GROUND_Y).setScale(-1.1, 1.1);
+      ora.mark.y = GROUND_Y - 128 + Math.sin(this.time.now / 250) * 5;
+      const near = Math.abs(h.x - ora.x) < 120;
+      ora.mark.setScale(near ? 1.15 : 1);
+      if (near && !ora.asked) { ora.asked = true; toast('אורה מלמדת את השיעור: לחצו ↑', true); }
+      if (near && take('upP')) { this.paused = true; this.physics.world.pause(); flow.talk(this, this.def); }
+    }
+    // health bars of enemies that were hit and of elites
+    this.bars.clear();
+    for (const e of this.enemies) {
+      if (!e.alive || (e.barT <= 0 && !e.elite)) continue;
+      const w = e.elite ? 70 : 38, y = e.y - (e.rig.body.origin === 'feet' ? e.rig.body.h * e.scale : e.rig.body.h * 0.5) - 14;
+      this.bars.fillStyle(0x17132a, 0.85).fillRect(e.x - w / 2 - 2, y - 2, w + 4, 9);
+      this.bars.fillStyle(e.elite ? 0xff7a4d : 0xff6b6b, 1).fillRect(e.x - w / 2, y, w * Math.max(0, e.hp / e.maxHp), 5);
     }
     // the exit
     const ex = this.layout.exit;

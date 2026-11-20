@@ -9,6 +9,8 @@ export interface HeroDef {
   magicName: string;
   glide: boolean;
   slash: number;           // colour of the swing effect
+  /** The ranged shot (second attack): hold to fire. */
+  shot: { tex: string; speed: number; dmg: number; rate: number; life: number; w: number; h: number; pierce: number; name: string };
 }
 export const HEROES: Record<string, HeroDef> = {
   bumper: {
@@ -19,6 +21,7 @@ export const HEROES: Record<string, HeroDef> = {
       { time: 0.38, hit: [0.14, 0.28], dmg: 2, lunge: 260, push: 520, reach: 100, h: 84 },
     ],
     magic: 'shockwave', magicName: 'גל הדף', glide: false, slash: 0xff7a4d,
+    shot: { tex: 'shot_stamp', speed: 560, dmg: 1.5, rate: 0.42, life: 0.7, w: 30, h: 20, pierce: 0, name: 'חותמות' },
   },
   lasso: {
     id: 'lasso', name: 'לאסו', blurb: 'מהירה וארוכת טווח, קושרת קבוצות', hp: 5, speed: 255, jump: -705, bodyW: 26, bodyH: 92,
@@ -28,6 +31,7 @@ export const HEROES: Record<string, HeroDef> = {
       { time: 0.34, hit: [0.1, 0.26], dmg: 2, lunge: 160, push: 380, reach: 170, h: 100 },
     ],
     magic: 'bind', magicName: 'קשירה', glide: false, slash: 0x4fd1c5,
+    shot: { tex: 'shot_twine', speed: 720, dmg: 1, rate: 0.3, life: 0.85, w: 26, h: 26, pierce: 1, name: 'טבעות חוט' },
   },
   beacon: {
     id: 'beacon', name: 'משואה', blurb: 'קלה ומרחפת, קרני אור וגל שידור', hp: 5, speed: 215, jump: -690, bodyW: 30, bodyH: 70,
@@ -37,5 +41,6 @@ export const HEROES: Record<string, HeroDef> = {
       { time: 0.36, hit: [0.12, 0.26], dmg: 2, lunge: 60, push: 300, reach: 230, h: 70 },
     ],
     magic: 'broadcast', magicName: 'שידור כללי', glide: true, slash: 0xffe45c,
+    shot: { tex: 'shot_light', speed: 820, dmg: 0.6, rate: 0.14, life: 1.0, w: 24, h: 24, pierce: 0, name: 'קרני אור' },
   },
 };

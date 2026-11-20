@@ -12,21 +12,28 @@ import { enemyRig } from '../art/registry';
 import { eye, INK, paper, Puppet, rr, shade, type PartDef } from '../art/puppet';
 import type { EnemyCtx, EnemyRig } from '../art/types';
 import type { Hero } from './hero';
+import type { ShotKind } from './proj';
 
-export type Arch = 'brawler' | 'flyer' | 'hopper' | 'thief' | 'warden';
-export interface EnemyDef { id: string; arch: Arch; hp: number; speed: number; chase: number; xp: number; touch?: number; splits?: boolean; fly?: boolean; guard?: boolean; awake?: boolean }
+export type Arch = 'brawler' | 'flyer' | 'hopper' | 'thief' | 'warden' | 'shooter';
+export interface EnemyDef { id: string; arch: Arch; hp: number; speed: number; chase: number; xp: number; touch?: number; splits?: boolean; fly?: boolean; guard?: boolean; awake?: boolean;
+  /** Use the rig of another enemy, with a colour wash (a variant). */
+  rig?: string; tint?: number;
+  /** A ranged attack: what it fires, how often (seconds), and from how far. */
+  shot?: { kind: ShotKind; every: [number, number]; range: number } }
 export const ENEMIES: Record<string, EnemyDef> = {
   crate: { id: 'crate', arch: 'brawler', hp: 3, speed: 70, chase: 120, xp: 10 },
-  imp: { id: 'imp', arch: 'flyer', hp: 2, speed: 150, chase: 150, xp: 10, fly: true },
+  crategun: { id: 'crategun', arch: 'shooter', hp: 3, speed: 45, chase: 60, xp: 14, rig: 'crate', tint: 0x9fd0ff, shot: { kind: 'packet', every: [2, 3.2], range: 560 } },
+  dupgun: { id: 'dupgun', arch: 'shooter', hp: 3, speed: 40, chase: 55, xp: 14, rig: 'dup', tint: 0xffc2e6, shot: { kind: 'pink', every: [2.4, 3.6], range: 560 } },
+  imp: { id: 'imp', arch: 'flyer', hp: 2, speed: 150, chase: 150, xp: 10, fly: true, shot: { kind: 'ring', every: [3.5, 5.5], range: 440 } },
   dup: { id: 'dup', arch: 'brawler', hp: 3, speed: 52, chase: 80, xp: 12, splits: true },
-  flood: { id: 'flood', arch: 'hopper', hp: 3, speed: 150, chase: 150, xp: 12 },
-  tagthief: { id: 'tagthief', arch: 'thief', hp: 3, speed: 150, chase: 230, xp: 14 },
-  warden: { id: 'warden', arch: 'warden', hp: 6, speed: 55, chase: 95, xp: 20, guard: true },
-  hornhawk: { id: 'hornhawk', arch: 'flyer', hp: 2, speed: 160, chase: 160, xp: 14, fly: true },
-  drifter: { id: 'drifter', arch: 'flyer', hp: 2, speed: 140, chase: 140, xp: 14, fly: true, awake: true },
-  gatewarden: { id: 'gatewarden', arch: 'warden', hp: 7, speed: 50, chase: 90, xp: 22, guard: true },
-  stormling: { id: 'stormling', arch: 'flyer', hp: 2, speed: 170, chase: 170, xp: 16, fly: true, awake: true },
-  echoknight: { id: 'echoknight', arch: 'brawler', hp: 4, speed: 80, chase: 135, xp: 20 },
+  flood: { id: 'flood', arch: 'hopper', hp: 3, speed: 150, chase: 150, xp: 12, shot: { kind: 'arc', every: [3, 4.5], range: 380 } },
+  tagthief: { id: 'tagthief', arch: 'thief', hp: 3, speed: 150, chase: 230, xp: 14, shot: { kind: 'tag', every: [3.5, 5], range: 380 } },
+  warden: { id: 'warden', arch: 'warden', hp: 6, speed: 55, chase: 95, xp: 20, guard: true, shot: { kind: 'wave', every: [4, 6], range: 320 } },
+  hornhawk: { id: 'hornhawk', arch: 'flyer', hp: 2, speed: 160, chase: 160, xp: 14, fly: true, shot: { kind: 'pink', every: [2.5, 4], range: 520 } },
+  drifter: { id: 'drifter', arch: 'flyer', hp: 2, speed: 140, chase: 140, xp: 14, fly: true, awake: true, shot: { kind: 'plane', every: [4, 6], range: 520 } },
+  gatewarden: { id: 'gatewarden', arch: 'warden', hp: 7, speed: 50, chase: 90, xp: 22, guard: true, shot: { kind: 'wave', every: [4, 6], range: 320 } },
+  stormling: { id: 'stormling', arch: 'flyer', hp: 2, speed: 170, chase: 170, xp: 16, fly: true, awake: true, shot: { kind: 'bolt', every: [2.8, 4.2], range: 520 } },
+  echoknight: { id: 'echoknight', arch: 'brawler', hp: 4, speed: 80, chase: 135, xp: 20, shot: { kind: 'wave', every: [3, 4.5], range: 340 } },
 };
 
 /** A plain stand-in while a creature's real rig is not drawn yet. */
@@ -38,7 +45,7 @@ function fallback(id: string): EnemyRig {
 }
 
 export class Enemy {
-  readonly def: EnemyDef;
+  def: EnemyDef;
   readonly rig: EnemyRig;
   readonly puppet: Puppet;
   readonly sprite: Phaser.Physics.Arcade.Sprite;
@@ -63,13 +70,14 @@ export class Enemy {
   onSpawn?: (kind: string, x: number, y: number) => void;
   onSteal?: (n: number) => void;
 
-  constructor(private scene: Phaser.Scene, kind: string, x: number, y: number, range = 120, copy = false) {
+  constructor(private scene: Phaser.Scene, kind: string, x: number, y: number, range = 120, copy = false, readonly elite = false) {
     this.def = ENEMIES[kind] ?? ENEMIES.crate;
-    this.rig = enemyRig(kind) ?? fallback(kind);
+    this.rig = enemyRig(this.def.rig ?? kind) ?? fallback(kind);
     this.isCopy = copy; this.home = x; this.range = range;
-    this.scale = (copy ? 0.75 : 1) * this.rig.scale;
-    this.hp = this.maxHp = copy ? 1 : this.def.hp;
-    const w = this.rig.body.w * (copy ? 0.75 : 1), h = this.rig.body.h * (copy ? 0.75 : 1);
+    const sz = copy ? 0.75 : elite ? 1.55 : 1;
+    this.scale = sz * this.rig.scale;
+    this.hp = this.maxHp = copy ? 1 : elite ? this.def.hp * 4 + 4 : this.def.hp;
+    const w = this.rig.body.w * sz, h = this.rig.body.h * sz;
     this.sprite = scene.physics.add.sprite(x, y, 'spark').setVisible(false).setOrigin(0.5, this.rig.body.origin === 'feet' ? 1 : 0.5);
     const b = this.sprite.body as Phaser.Physics.Arcade.Body;
     b.setSize(w, h);
@@ -78,7 +86,12 @@ export class Enemy {
     this.dir = Math.random() < 0.5 ? 1 : -1;
     this.puppet = new Puppet(scene, this.rig.parts, this.rig.id);
     this.puppet.setDepth(8);
+    if (this.def.tint) this.puppet.setBaseTint(this.def.tint);
+    this.shootCool = 1 + Math.random() * 2.5;
+    if (elite) { this.puppet.setBaseTint(0xffd0c0); this.def = { ...this.def, shot: this.def.shot ?? { kind: 'pink', every: [2.2, 3.2], range: 560 }, xp: this.def.xp * 4 }; }
   }
+  private shootCool = 0; private shootPhase = 0; private after = 0;
+  onShoot?: (e: Enemy, kind: ShotKind) => void;
   get body(): Phaser.Physics.Arcade.Body { return this.sprite.body as Phaser.Physics.Arcade.Body; }
   get x(): number { return this.sprite.x; }
   get y(): number { return this.sprite.y; }
@@ -122,7 +135,21 @@ export class Enemy {
     } else if (this.stun > 0) { b.setVelocityX(b.velocity.x * 0.92); }
     else {
       if (this.state === 'hurt' || this.state === 'jam') this.setState('idle');
+      const sh = this.def.shot;
+      if (sh) {
+        this.shootCool = Math.max(0, this.shootCool - dt);
+        if (this.shootPhase > 0) {                                 // aiming: a harmless, readable telegraph
+          this.shootPhase -= dt; if (!this.def.fly) b.setVelocityX(0); else b.setVelocity(b.velocity.x * 0.8, b.velocity.y * 0.8);
+          this.setState('windup'); this.dir = dx > 0 ? 1 : -1;
+          if (this.shootPhase <= 0) { this.onShoot?.(this, sh.kind); this.shootCool = sh.every[0] + Math.random() * (sh.every[1] - sh.every[0]); this.setState('attack'); this.after = 0.3; }
+          this.view(dt); return;
+        }
+        if (this.after > 0) { this.after -= dt; if (this.after <= 0) this.setState('idle'); this.view(dt); return; }
+        const calm = this.state === 'idle' || this.state === 'move';
+        if (this.shootCool <= 0 && awake && !this.asleep && calm && Math.abs(dx) < sh.range && Math.abs(hero.y - this.y) < 260) this.shootPhase = 0.5;
+      }
       switch (this.def.arch) {
+        case 'shooter': this.shooter(dx, awake); break;
         case 'brawler': this.brawler(dt, dx, near, awake, others); break;
         case 'warden': this.warden(dt, dx, near, awake); break;
         case 'flyer': this.flyer(dt, hero, dx); break;
@@ -135,6 +162,13 @@ export class Enemy {
   }
   private dirToward(dx: number): void { if (this.state === 'move' || this.state === 'windup' || this.state === 'attack') { if (Math.abs(dx) > 8 && (this.state !== 'move' || Math.abs(dx) < 330)) this.dir = dx > 0 ? 1 : -1; } }
 
+  /** A shooter keeps its distance: it backs away when the hero gets close and otherwise paces. */
+  private shooter(dx: number, awake: boolean): void {
+    const b = this.body;
+    if (awake && Math.abs(dx) < 140 && !this.asleep) { this.dir = dx > 0 ? -1 : 1; b.setVelocityX(this.dir * this.def.chase * 1.4); this.setState('move'); return; }
+    if (Math.abs(dx) < 520 && awake) { this.dir = dx > 0 ? 1 : -1; b.setVelocityX(0); this.setState('idle'); return; }
+    this.patrol(this.def.speed);
+  }
   private patrol(speed: number): void {
     if (this.x > this.home + this.range) this.dir = -1;
     if (this.x < this.home - this.range) this.dir = 1;

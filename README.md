@@ -13,3 +13,9 @@ Original art, all drawn and animated in code ("puppets", see `src/art/README.md`
 `npm install`, `npm run dev` (http://localhost:5213/), `npm run build`.
 Test hooks: `?stage=market.1` starts a stage directly, `?gallery[=rigId]` shows the creatures, `?cheat`.
 Tools (dev server needed): `tools/gallery.py`, `tools/shot.py`, `tools/boss.py`, `tools/lesson.py`, `tools/flow.py`, `tools/touch.py`.
+
+## Controls (v2)
+Keyboard: arrows or WASD move, Space jump (press again in the air: double jump; press again while touching a pink object: parry),
+J or left mouse = melee combo, K or right mouse (hold) = ranged shot, Shift or C = dash, L or Q or middle mouse = super (full meter).
+Touch: stick + five buttons (melee, shoot, jump, dash, super).
+The lesson comes first: Ora (the tortoise teacher) waits at the start of stage 1 of each area, and the end of stage 1 is a gate that needs the lesson.

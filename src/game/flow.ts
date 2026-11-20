@@ -52,7 +52,7 @@ export const flow = {
   /** The player used the exit of a stage. */
   finish(scene: Phaser.Scene, def: StageDef, st: Stats): void {
     // a lesson gate: the third stage ends at a gate that needs the area's lesson
-    if (def.n === 3 && !lessonPassed(def.area.id)) {
+    if (def.n === 1 && def.area.lesson && !lessonPassed(def.area.id)) {
       const lessonId = def.area.lesson;
       sfx.card();
       openLesson(lessonId, def.area.name, (res) => {
@@ -61,6 +61,11 @@ export const flow = {
       return;
     }
     this.complete(scene, def, st);
+  },
+  /** The hero talks to Ora: the lesson of the area opens (as often as the player likes). */
+  talk(scene: Phaser.Scene, def: StageDef): void {
+    sfx.card();
+    openLesson(def.area.lesson, def.area.name, () => { (scene as unknown as { resume(): void }).resume(); });
   },
   complete(_scene: Phaser.Scene, def: StageDef, st: Stats): void {
     const stars = 1 + (st.falls === 0 ? 1 : 0) + (st.card || st.hp >= 0.5 ? 1 : 0);
