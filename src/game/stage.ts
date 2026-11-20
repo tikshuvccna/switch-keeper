@@ -165,7 +165,7 @@ export class Stage extends Phaser.Scene {
     this.tipBubble = null;
     if ((L.orbs?.length ?? 0) > 0 && !save.paid.includes('tip.parry')) {                    // until the first parry: a hint above the first orb
       const [ox, oy] = (L.orbs as [number, number][])[0];
-      this.tipBubble = this.add.text(ox, oy - 52, 'קפצו אל הכדור הוורוד,\nואז לחצו קפיצה שוב: פארי!', { fontFamily: 'Rubik, Arial', fontSize: '17px', fontStyle: '800', color: '#fff4dc', backgroundColor: '#c93a2a', align: 'center', padding: { x: 10, y: 5 } }).setOrigin(0.5, 1).setDepth(8).setVisible(false);
+      this.tipBubble = this.add.text(ox, oy - 52, 'קפצו אל הכדור הוורוד\nואז לחצו קפיצה שוב', { fontFamily: 'Rubik, Arial', fontSize: '17px', fontStyle: '800', color: '#fff4dc', backgroundColor: '#c93a2a', align: 'center', padding: { x: 10, y: 5 } }).setOrigin(0.5, 1).setDepth(8).setVisible(false);
       this.tweens.add({ targets: this.tipBubble, y: oy - 58, yoyo: true, repeat: -1, duration: 600, ease: 'sine.inOut' });
     }
     for (const [ox, oy] of (L.orbs ?? [])) {
