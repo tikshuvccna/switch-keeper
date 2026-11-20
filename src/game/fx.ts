@@ -45,7 +45,7 @@ export class Fx {
   }
   puff(x: number, y: number, n = 4): void { this.dust.explode(n, x, y); }
   text(x: number, y: number, s: string, color = '#ffffff', size = 22): void {
-    const t = this.scene.add.text(x, y, s, { fontFamily: 'Rubik, Arial', fontSize: size + 'px', fontStyle: '900', color, stroke: '#1d1a33', strokeThickness: 5 }).setOrigin(0.5).setDepth(40);
+    const t = this.scene.add.text(x, y, s, { fontFamily: 'Rubik, Arial', fontSize: size + 'px', fontStyle: '900', color, stroke: '#1d1a33', strokeThickness: 5, rtl: /[\u0590-\u05ff]/.test(s) }).setOrigin(0.5).setDepth(40);
     this.scene.tweens.add({ targets: t, y: y - 42, alpha: 0, duration: 650, ease: 'cubic.out', onComplete: () => t.destroy() });
   }
 }

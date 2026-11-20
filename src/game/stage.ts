@@ -2,7 +2,8 @@
  * A playable stage of an area: generated layout, paper-cut world art, the hero, the enemies, pickups, checkpoints and the exit.
  */
 import * as Phaser from 'phaser';
-import { Backdrop, pickupTex, put, VIEW_H, VIEW_W, worldArt, type WorldArt } from '../art/world';
+import { Backdrop, mk, pickupTex, put, tex, VIEW_H, VIEW_W, worldArt, type WorldArt } from '../art/world';
+import { LESSONS } from '../learn/content';
 import '../art/worlds';
 import { combo, hudTick, hudUpdate, toast } from '../hud';
 import { clearInput, inp, take } from '../input';
@@ -19,9 +20,12 @@ import { inp as input } from '../input';
 import { Fx } from './fx';
 import { Hero } from './hero';
 import { GROUND_Y, layoutFor, stageById, type Layout, type StageDef } from './levels';
-import { flow } from './flow';
+import { flow, lessonPassed } from './flow';
 import { bonuses } from './progress';
 import { save, store } from './save';
+
+/** A texture drawn with a function at 2x resolution (cached by key). */
+function texd(scene: Phaser.Scene, key: string, w: number, h: number, f: (c: CanvasRenderingContext2D) => void, _res = 2): string { return tex(scene, key, mk(w, h, f, 2), 2); }
 
 export class Stage extends Phaser.Scene {
   hero!: Hero;
@@ -53,7 +57,7 @@ export class Stage extends Phaser.Scene {
   private chaseWall: Phaser.GameObjects.Rectangle | null = null;
   projs: Proj[] = [];
   private tipBubble: Phaser.GameObjects.Text | null = null;
-  private ora: { pup: Puppet; x: number; mark: Phaser.GameObjects.Text; asked: boolean } | null = null;
+  private ora: { pup: Puppet; x: number; mark: Phaser.GameObjects.Text; bubble: Phaser.GameObjects.Text; asked: boolean } | null = null;
   private bars!: Phaser.GameObjects.Graphics;
   private obstacles: Obstacles | null = null;
   private orbs: { img: Phaser.GameObjects.Image; x: number; y: number; cd: number }[] = [];
@@ -151,14 +155,35 @@ export class Stage extends Phaser.Scene {
       fx: this.fx, platforms: this.platforms, spawnProj: (p) => this.projs.push(p),
       hurt: (fx, dmg) => { if (h.hurt(fx, dmg)) { sfx.hurt(); this.fx.hit(h.x, h.y - 40, 0xff6b6b); if (!save.calm) this.cameras.main.shake(120, 0.008); } },
     }, L.obs ?? []);
-    // Ora, the teacher: she waits near the start of stage 1 and opens the lesson of the area
+    // Ora, the teacher: she waits near the start of stage 1 with a chalkboard, and opens the lesson of the area
     if (this.def.n === 1 && this.def.area.lesson) {
       const rig = enemyRig('ora');
+      const ls = LESSONS[this.def.area.lesson];
       if (rig) {
         const pup = new Puppet(this, rig.parts, 'ora');
         pup.setDepth(7);
-        const mark = this.add.text(560, GROUND_Y - 130, 'שיעור ↑', { fontFamily: 'Rubik, Arial', fontSize: '18px', fontStyle: '900', color: '#fff4dc', backgroundColor: '#c93a2a', padding: { x: 8, y: 3 } }).setOrigin(0.5).setDepth(8);
-        this.ora = { pup, x: 560, mark, asked: false };
+        // a chalkboard with the lesson on it, and a signpost pointing to her
+        const board = texd(this, 'chalk_' + this.def.area.lesson, 190, 120, (c) => {
+          c.fillStyle = '#7a5a3a'; c.fillRect(0, 0, 190, 120); c.fillStyle = '#244a3c'; c.fillRect(8, 8, 174, 96);
+          c.strokeStyle = '#1d1a33'; c.lineWidth = 4; c.strokeRect(2, 2, 186, 112);
+          c.fillStyle = '#fff4dc'; c.font = '800 26px Rubik, Arial'; c.textAlign = 'center'; c.direction = 'rtl'; c.fillText('שיעור ' + (ls?.num ?? ''), 95, 44);
+          c.font = '700 16px Rubik, Arial'; c.fillStyle = '#ffe9a0';
+          const words = (ls?.title ?? '').split(' '); let line = '', y = 70;
+          for (const w of words) { if ((line + ' ' + w).length > 17) { c.fillText(line, 95, y); line = w; y += 20; } else line = line ? line + ' ' + w : w; }
+          c.fillText(line, 95, y);
+          c.fillStyle = '#c93a2a'; c.fillRect(20, 108, 150, 6); c.fillStyle = '#fff4dc'; c.fillRect(30, 109, 24, 4);
+        }, 2);
+        put(this, 700, GROUND_Y - 36, board, 0.5, 1).setDepth(5);
+        const sign = texd(this, 'teachersign', 150, 80, (c) => {
+          c.fillStyle = '#6b4a2f'; c.fillRect(70, 40, 10, 40); c.strokeStyle = '#1d1a33'; c.lineWidth = 3; c.strokeRect(70, 40, 10, 40);
+          c.fillStyle = '#fff4dc'; c.strokeStyle = '#1d1a33'; c.lineWidth = 3.5; c.beginPath(); c.moveTo(6, 6); c.lineTo(112, 6); c.lineTo(144, 24); c.lineTo(112, 42); c.lineTo(6, 42); c.closePath(); c.fill(); c.stroke();
+          c.fillStyle = '#c93a2a'; c.font = '800 19px Rubik, Arial'; c.textAlign = 'center'; c.direction = 'rtl'; c.fillText('אורה המורה', 66, 31);
+        }, 2);
+        put(this, 330, GROUND_Y, sign, 0.5, 1).setDepth(4);
+        const mark = this.add.text(560, GROUND_Y - 150, 'לחצו ↑ כדי ללמוד', { fontFamily: 'Rubik, Arial', fontSize: '18px', fontStyle: '900', color: '#fff4dc', backgroundColor: '#c93a2a', padding: { x: 8, y: 3 }, rtl: true }).setOrigin(0.5).setDepth(9).setVisible(false);
+        const bubble = this.add.text(560, GROUND_Y - 150, 'שלום, אני אורה המורה!\nלפני שממשיכים, בואו נלמד.', { fontFamily: 'Rubik, Arial', fontSize: '17px', fontStyle: '800', color: '#2b2a58', backgroundColor: '#fff4dc', align: 'center', padding: { x: 12, y: 7 }, rtl: true }).setOrigin(0.5, 1).setDepth(9);
+        this.ora = { pup, x: 560, mark, bubble, asked: false };
+        if (!lessonPassed(this.def.area.id)) this.time.delayedCall(4300, () => { if (this.scene.isActive()) toast('השער בסוף השלב נעול. קודם לומדים אצל אורה', false, 3.5); });
       }
     }
     this.bars = this.add.graphics().setDepth(20);
@@ -406,7 +431,12 @@ export class Stage extends Phaser.Scene {
     }
   }
 
+  /** Phaser's frame loop stops for good if an update throws, so a failure here must never escape. */
   update(_t: number, dtMs: number): void {
+    if (!this.cameras?.main || !this.sys.isActive()) return;
+    try { this.tick(dtMs); } catch (e) { console.error(e); }
+  }
+  private tick(dtMs: number): void {
     let dt = Math.min(0.05, dtMs / 1000);
     const h = this.hero;
     this.backdrop.update(this.cameras.main.scrollX);
@@ -487,12 +517,12 @@ export class Stage extends Phaser.Scene {
     // Ora
     const ora = this.ora;
     if (ora) {
-      ora.pup.apply(enemyRig('ora')!.pose({ state: 'idle', time: this.time.now / 1000, t: 0, vx: 0, vy: 0, grounded: true, hp: 1, phase: 0, variant: 0 }));
-      ora.pup.root.setPosition(ora.x, GROUND_Y).setScale(-1.1, 1.1);
-      ora.mark.y = GROUND_Y - 128 + Math.sin(this.time.now / 250) * 5;
-      const near = Math.abs(h.x - ora.x) < 120;
-      ora.mark.setScale(near ? 1.15 : 1);
-      if (near && !ora.asked) { ora.asked = true; toast('אורה מלמדת את השיעור: לחצו ↑', true); }
+      ora.pup.apply(enemyRig('ora')!.pose({ state: Math.abs(h.x - ora.x) < 420 ? 'windup' : 'idle', time: this.time.now / 1000, t: 0, vx: 0, vy: 0, grounded: true, hp: 1, phase: 0, variant: 0 }));
+      ora.pup.root.setPosition(ora.x, GROUND_Y).setScale(h.x < ora.x ? -1.15 : 1.15, 1.15);
+      const dist = Math.abs(h.x - ora.x), near = dist < 130, talk = dist < 460;
+      ora.bubble.setVisible(talk && !near).setPosition(ora.x, GROUND_Y - 128 + Math.sin(this.time.now / 300) * 3);
+      ora.mark.setVisible(near).setPosition(ora.x, GROUND_Y - 128 + Math.sin(this.time.now / 200) * 4).setScale(1 + Math.sin(this.time.now / 160) * 0.05);
+      if (near && !ora.asked) { ora.asked = true; sfx.card(); }
       if (near && take('upP')) { this.paused = true; this.physics.world.pause(); flow.talk(this, this.def); }
     }
     // health bars of enemies that were hit and of elites

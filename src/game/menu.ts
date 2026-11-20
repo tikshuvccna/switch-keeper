@@ -35,6 +35,7 @@ export class Menu extends Phaser.Scene {
     this.t = 0;
   }
   update(_t: number, dtMs: number): void {
+    if (!this.cameras?.main || !this.sys.isActive() || !this.pup) return;
     this.t += dtMs / 1000;
     this.bd.update(this.t * 18);
     const rig = heroRig(save.hero);

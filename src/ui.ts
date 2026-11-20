@@ -40,6 +40,8 @@ export function showMenuScreen(): void {
   r.append(title);
   const col = el('div', 'slots');
   const next = STAGES.find((s) => isOpen(s.id) && !(save.stages[s.id]?.stars) && !(s.boss && save.areas[s.area.id])) ?? STAGES[0];
+  const waiting = AREAS.find((x) => x.lesson && isOpen(x.id + '.1') && !lessonPassed(x.id));
+  if (waiting) col.append(btn('שיעור מחכה: ' + waiting.name + ' (ללמוד עכשיו)', 'slot hot', () => openLesson(waiting.lesson, waiting.name, () => showMenuScreen())));
   col.append(btn('המשך מסע', 'slot big', () => play(next.id)));
   col.append(btn('מפת המסע', 'slot', showMap));
   col.append(btn('איך משחקים', 'slot', showHow));

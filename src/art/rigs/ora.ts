@@ -30,13 +30,17 @@ const PARTS: PartDef[] = [
     eye(c, 33, 17, 4.4, 0.3);
     c.strokeStyle = INK; c.lineWidth = 2.6; c.beginPath(); ell(c, 33, 17, 7.6, 7.6); c.stroke(); c.beginPath(); c.moveTo(25.5, 16); c.lineTo(10, 14); c.stroke();   // round glasses
     c.fillStyle = 'rgba(255,111,111,0.35)'; c.beginPath(); ell(c, 26, 29, 4, 2.6); c.fill();
-    paper(c, () => { c.moveTo(6, 18); c.bezierCurveTo(8, 2, 28, -1, 36, 6); c.lineTo(30, 10); c.bezierCurveTo(22, 6, 12, 8, 10, 20); c.closePath(); }, MUST, { lw: 2.6 });   // a tidy hairnet of a cap
+    paper(c, () => rr(c, 14, 8, 22, 12, 3), '#2a2a3a', { lw: 2.4 });                                  // the base of a graduation cap
+    paper(c, () => { c.moveTo(4, 9); c.lineTo(26, 0); c.lineTo(48, 9); c.lineTo(26, 18); c.closePath(); }, '#3a3a52', { lw: 2.8 });   // the flat board
+    c.strokeStyle = MUST; c.lineWidth = 2.4; c.beginPath(); c.moveTo(26, 9); c.lineTo(44, 12); c.lineTo(44, 24); c.stroke();      // the tassel
+    c.fillStyle = MUST; c.beginPath(); ell(c, 44, 26, 3, 4); c.fill(); c.lineWidth = 1.6; c.strokeStyle = INK; c.stroke();
   } } },
-  { name: 'arm', at: [10, -32], img: { w: 18, h: 40, ax: 9, ay: 6, draw: (c) => {
+  { name: 'arm', at: [10, -32], img: { w: 24, h: 46, ax: 9, ay: 6, draw: (c) => {
     paper(c, () => rr(c, 4, 2, 11, 24, 5), SKIN, { y0: 2, y1: 26 });
     paper(c, () => ell(c, 9.5, 30, 5.5, 5.5), SKIN, { y0: 24, y1: 36 });
-    paper(c, () => rr(c, 1, 26, 17, 12, 2), CREAM, { lw: 2.2, y0: 26, y1: 38 });                        // the letter in her hand
-    c.strokeStyle = INK; c.lineWidth = 1.6; c.beginPath(); c.moveTo(2, 27); c.lineTo(9.5, 33); c.lineTo(17, 27); c.stroke();
+    paper(c, () => rr(c, -2, 24, 24, 17, 2), RED, { lw: 2.4, y0: 24, y1: 41 });                       // a thick red book
+    paper(c, () => rr(c, 1, 26, 19, 13, 1), CREAM, { lw: 1.8, y0: 26, y1: 39 });
+    c.strokeStyle = 'rgba(29,26,51,0.55)'; c.lineWidth = 1.4; c.beginPath(); c.moveTo(4, 30); c.lineTo(17, 30); c.moveTo(4, 33); c.lineTo(17, 33); c.moveTo(4, 36); c.lineTo(13, 36); c.stroke();
   } } },
 ];
 

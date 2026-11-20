@@ -92,7 +92,7 @@ export const flow = {
   /** The 10-15 minute rule: a storm rolls in and carries the player to the lesson tower. */
   storm(scene: Phaser.Scene): void {
     save.playMin = 0; store();
-    const next = AREAS.find((a) => a.lesson && !lessonPassed(a.id) && save.stages[a.id + '.2']?.stars);
+    const next = AREAS.find((a) => a.lesson && isOpen(a.id + '.1') && !lessonPassed(a.id));
     scene.cameras.main.fadeOut(900, 40, 20, 80);
     scene.time.delayedCall(950, () => { toMenu(); if (next) setTimeout(() => openLesson(next.lesson, next.name, () => { showMenuScreen(); }), 400); });
   },

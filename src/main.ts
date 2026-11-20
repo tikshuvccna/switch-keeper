@@ -33,6 +33,7 @@ const game = new Phaser.Game({
   scene: q.has('gallery') ? [Gallery] : q.has('world') ? [WorldView] : q.has('stage') ? [Stage, Menu] : [Menu, Stage],
 });
 attach(game);
+(window as unknown as { __game: unknown }).__game = game;
 (window as unknown as { __learn: unknown }).__learn = { openLesson, LESSONS };
 setVolumes(save.music, save.sound);
 if (!q.has('gallery') && !q.has('world') && !q.has('stage')) showMenuScreen(); else document.body.classList.add('playing');
