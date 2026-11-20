@@ -98,9 +98,9 @@ export const BEACON: PartDef[] = [
   } } },
   // the front wing and the lamp staff
   { name: 'wingF', parent: 'body', at: [8, -31], img: wing(0) },
-  { name: 'staff', parent: 'wingF', at: [1, 24], behind: true, img: { w: 26, h: 86, ax: 13, ay: 46, draw: (c) => {
-    paper(c, () => rr(c, 10.8, 30, 4.4, 53, 2.2), WOOD, { lw: 2.2, y0: 30, y1: 83 });                     // the pole
-    paper(c, () => rr(c, 9.6, 78, 6.8, 6, 2), shade(WOOD, -0.35), { lw: 2 });
+  { name: 'staff', parent: 'wingF', at: [1, 24], behind: true, img: { w: 26, h: 66, ax: 13, ay: 46, draw: (c) => {
+    paper(c, () => rr(c, 10.8, 30, 4.4, 32, 2.2), WOOD, { lw: 2.2, y0: 30, y1: 62 });                     // the pole
+    paper(c, () => rr(c, 9.6, 57, 6.8, 6, 2), shade(WOOD, -0.35), { lw: 2 });
     paper(c, () => { c.moveTo(8.5, 23); c.lineTo(17.5, 23); c.lineTo(16, 33); c.lineTo(10, 33); c.closePath(); }, CREAM, { lw: 2.2, y0: 23, y1: 33 });   // the little tower
     c.save(); c.beginPath(); c.moveTo(8.5, 23); c.lineTo(17.5, 23); c.lineTo(16, 33); c.lineTo(10, 33); c.closePath(); c.clip(); c.fillStyle = RED; c.fillRect(0, 26.5, 26, 3.2); c.restore();
     const g = c.createRadialGradient(13, 15, 0.5, 13, 15, 8);
@@ -111,10 +111,10 @@ export const BEACON: PartDef[] = [
     paper(c, () => { c.moveTo(5.5, 10.5); c.quadraticCurveTo(13, -0.5, 20.5, 10.5); c.closePath(); }, RED, { lw: 2.2, y0: 2, y1: 11 });   // the roof
     paper(c, () => ell(c, 13, 3, 2, 2), shade(RED, -0.2), { lw: 1.6 });
   } } },
-  { name: 'glow', parent: 'staff', at: [0, -31], behind: true, img: { w: 90, h: 90, ax: 45, ay: 45, draw: (c) => {
-    const g = c.createRadialGradient(45, 45, 2, 45, 45, 45);
-    g.addColorStop(0, 'rgba(255,246,190,0.85)'); g.addColorStop(0.2, 'rgba(255,220,110,0.5)'); g.addColorStop(0.55, 'rgba(255,196,80,0.16)'); g.addColorStop(1, 'rgba(255,186,64,0)');
-    c.fillStyle = g; c.fillRect(0, 0, 90, 90);
+  { name: 'glow', parent: 'staff', at: [0, -31], behind: true, img: { w: 56, h: 56, ax: 28, ay: 28, draw: (c) => {
+    const g = c.createRadialGradient(28, 28, 1, 28, 28, 28);
+    g.addColorStop(0, 'rgba(255,248,200,0.9)'); g.addColorStop(0.22, 'rgba(255,222,110,0.5)'); g.addColorStop(0.55, 'rgba(255,200,80,0.12)'); g.addColorStop(1, 'rgba(255,190,64,0)');
+    c.fillStyle = g; c.fillRect(0, 0, 56, 56);
   } } },
   { name: 'spark', parent: 'staff', at: [0, -31], img: { w: 44, h: 44, ax: 22, ay: 22, draw: (c) => {
     const g = c.createRadialGradient(22, 22, 0, 22, 22, 21);
@@ -180,7 +180,7 @@ function raw(x: RigCtx): [Pose, number] {
   const t = x.time;
   if (x.state === 'asleep') {
     const br = Math.sin(t * 1.6);
-    return [{ body: [0.08, 0, 3, 1.08 + 0.02 * br, 0.9 + 0.02 * br], head: [0.28, 1, 2], cap: [0.42, 2, 1], bobble: [0.7], wingF: [0.05], wingB: [0.1], staff: [-0.35], glow: S(0.45), spark: S(0.15), scarfTail: [0.05] }, 1];
+    return [{ body: [0.08, 0, 3, 1.08 + 0.02 * br, 0.9 + 0.02 * br], head: [0.2, 1, 2], cap: [0.28, 1, 1], bobble: [0.7], wingF: [-0.25], wingB: [0.1], staff: [0.5], glow: S(0.55), spark: S(0.15), scarfTail: [0.05] }, 1];
   }
   if (x.state === 'hurt') return [{ body: [-0.32, -3, -2, 0.92, 1.08], head: [-0.25], cap: [-0.45, -2, -3], bobble: [0.9], wingF: [-2.0], wingB: [2.2], staff: [-0.6], glow: S(0.6), spark: S(0.25),
     footF: [-0.5, 2, -3], footB: [0.4, 0, -2], scarfTail: [-0.5], tail: [-0.3] }, 0.55];
