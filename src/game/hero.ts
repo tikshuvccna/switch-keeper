@@ -179,7 +179,6 @@ export class Hero {
         if (inp.right) dir += 1;
         if (env.auto) dir = 1;
         if (dir !== 0) this.facing = dir > 0 ? 1 : -1;
-        if (inp.aim !== 0 && (wantAttack || inp.shootHeld)) this.facing = inp.aim > 0 ? 1 : -1;       // the mouse turns the hero toward the pointer
         if (env.fly) {                                                     // flying: free movement in both directions
           b.setAllowGravity(false);
           const iy = (inp.down ? 1 : 0) - ((inp.up || inp.jumpHeld) ? 1 : 0), ty = iy * speed * 0.95, vy0 = b.velocity.y;

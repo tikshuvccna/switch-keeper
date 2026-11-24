@@ -471,7 +471,7 @@ export class Stage extends Phaser.Scene {
 
     h.onOneWay = this.oneWay.some((p) => Math.abs(h.y - p.y) < 6 && h.x > p.x - 8 && h.x < p.x + p.displayWidth + 8);
     h.groundY = this.groundBelow(h.x, h.y, h.flipped);
-    input.aim = input.mouseOn ? Math.sign(this.input.activePointer.worldX - h.x) : 0;
+    input.aim = 0;
     this.obstacles?.update(sdt);
     h.update(dt);
 
