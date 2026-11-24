@@ -67,8 +67,9 @@ function labels(host: HTMLElement, level: number, done: (r: GameResult) => void)
     d.type = 'button'; d.append(Object.assign(el('span', '', mac), { dir: 'ltr' }));
     const b: Box = { d, x: -170, mac, hit: false };
     d.onclick = () => {
-      if (!running || b.hit) return;
-      const ok = t.mac ? b.mac === t.mac : kindOf(b.mac) === t.kind;
+      const cur = target;
+      if (!running || b.hit || !cur) return;
+      const ok = cur.mac ? b.mac === cur.mac : kindOf(b.mac) === cur.kind;
       if (ok) { b.hit = true; score++; sfx.bit(); d.classList.add('good'); boxes.forEach((o) => { if (o !== b) o.hit = false; }); newSlip(); f.set(score, goal, mistakes, left); if (score >= goal) finish(true); }
       else { mistakes++; sfx.nope(); d.classList.add('bad'); f.set(score, goal, mistakes, left); if (mistakes >= 3) finish(false); }
     };
@@ -102,13 +103,17 @@ function beSwitch(host: HTMLElement, level: number, done: (r: GameResult) => voi
   const age = new Map<string, number>();
   const card = el('div', 'frame'), table$ = el('div', 'mactable2'), acts = el('div', 'acts');
   f.host.append(card, table$, acts);
-  let score = 0, mistakes = 0, running = true, left = 0, cur: { src: string; dst: string; port: number } | null = null;
+  let score = 0, mistakes = 0, running = true, left = 0, stepN = 0, cur: { src: string; dst: string; port: number } | null = null;
   const total = 120 + level * -10;
   left = total;
-  const drawTable = () => { table$.textContent = ''; table$.append('טבלת MAC: '); if (!table.size) table$.append('(ריקה)'); for (const [m, p] of table) { const c = Object.assign(el('span', 'trow', m + ' ← ' + p), { dir: 'ltr' }); table$.append(c); } };
+  const drawTable = () => { table$.textContent = ''; table$.append('טבלת MAC: '); if (!table.size) table$.append('(ריקה)'); for (const [m, p] of table) { const c = Object.assign(el('span', 'trow', m + ' → פורט ' + p), { dir: 'ltr' }); table$.append(c); } };
   const newFrame = () => {
-    // age out an old entry now and then (hard level): its owner is unknown again
-    if (level === 2 && table.size > 2 && Math.random() < 0.35) { const k = [...table.keys()][rnd(table.size)]; table.delete(k); card.dataset.note = 'שורה ' + k + ' נמחקה אחרי 5 דקות בלי תעבורה'; } else card.dataset.note = '';
+    // age out the oldest unused entry (hard level): its owner is unknown again
+    if (level === 2 && table.size > 2 && Math.random() < 0.35) {
+      let oldest = '', oldestT = Infinity;
+      for (const k of table.keys()) { const t = age.get(k) ?? 0; if (t < oldestT) { oldestT = t; oldest = k; } }
+      if (oldest) { table.delete(oldest); age.delete(oldest); card.dataset.note = 'שורה ' + oldest + ' נמחקה אחרי 5 דקות בלי תעבורה'; }
+    } else card.dataset.note = '';
     const s = hosts[rnd(hosts.length)];
     let dst = Math.random() < (level >= 1 ? 0.15 : 0) ? 'FF' : hosts[rnd(hosts.length)].m;
     if (dst === s.m) dst = hosts[(hosts.indexOf(s) + 1) % hosts.length].m;
@@ -116,7 +121,7 @@ function beSwitch(host: HTMLElement, level: number, done: (r: GameResult) => voi
     cur = { src: s.m, dst, port: s.p };
     left = Math.max(left, 0);
     card.textContent = '';
-    card.append(el('b', '', 'מסגרת נכנסת מפורט ' + s.p), Object.assign(el('span', '', 'מקור ' + s.m + '  ←  יעד ' + (dst === 'FF' ? 'FF (Broadcast)' : dst)), { dir: 'ltr' }));
+    card.append(el('b', '', 'מסגרת נכנסת מפורט ' + s.p), el('span', '', 'מקור: ' + s.m + '  |  יעד: ' + (dst === 'FF' ? 'FF (Broadcast)' : dst)));
     if (card.dataset.note) card.append(el('i', '', card.dataset.note));
     frameT = perFrame || 999;
   };
@@ -125,7 +130,7 @@ function beSwitch(host: HTMLElement, level: number, done: (r: GameResult) => voi
   const act = (a: string) => {
     if (!running || !cur) return;
     const c = cur, right = correct();
-    table.set(c.src, c.port);                                       // the switch learns the source, whatever the player chose
+    table.set(c.src, c.port); age.set(c.src, ++stepN);                 // the switch learns the source and refreshes its aging timer
     if (a === right) { score++; sfx.bit(); card.classList.add('ok'); } else { mistakes++; sfx.nope(); card.classList.add('no'); const why = right === 'flood' ? 'היעד לא מוכר או Broadcast: מציפים' : right === 'filter' ? 'היעד באותו פורט: מסננים' : 'היעד מוכר בפורט ' + right.slice(1) + ': מעבירים רק אליו'; card.append(el('i', '', why)); }
     drawTable(); f.set(score, goal, mistakes, left);
     if (score >= goal) return end(true); if (mistakes >= 3) return end(false);
@@ -169,7 +174,8 @@ function borders(host: HTMLElement, level: number, done: (r: GameResult) => void
     fig.textContent = ''; fig.append(drawTopo(t));
     q.textContent = kind === 'collision' ? 'כמה אזורי התנגשות יש בתרשים?' : 'כמה אזורי Broadcast יש בתרשים?';
     ans.textContent = '';
-    for (let n = 1; n <= 9; n++) { const b = el('button', 'chip', String(n)); b.type = 'button'; b.onclick = () => pick(n, b); ans.append(b); }
+    const maxOpt = Math.max(9, right);
+    for (let n = 1; n <= maxOpt; n++) { const b = el('button', 'chip', String(n)); b.type = 'button'; b.onclick = () => pick(n, b); ans.append(b); }
   };
   const pick = (n: number, b: HTMLElement) => {
     if (answered || !running) return;

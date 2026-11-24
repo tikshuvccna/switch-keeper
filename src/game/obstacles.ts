@@ -37,7 +37,7 @@ export interface ObsHooks {
 
 interface Live {
   o: Obs; t: number; img?: Phaser.GameObjects.Image; body?: Phaser.Physics.Arcade.Image; extra?: Phaser.GameObjects.GameObject[];
-  state?: number; timer?: number; stat?: Phaser.Physics.Arcade.Sprite; x0?: number; y0?: number; fireT?: number;
+  state?: number; timer?: number; stat?: Phaser.Physics.Arcade.Sprite; x0?: number; y0?: number; fireT?: number; baseSx?: number; baseSy?: number;
 }
 
 export class Obstacles {
@@ -55,7 +55,7 @@ export class Obstacles {
           for (let i = 0; i < n; i++) { c.fillStyle = i % 2 ? '#b9bfd3' : '#d4d9ea'; c.beginPath(); c.moveTo(i * 22 + 1, 22); c.lineTo(i * 22 + 11, 2); c.lineTo(i * 22 + 21, 22); c.closePath(); c.fill(); c.lineWidth = 2.4; c.strokeStyle = INK; c.stroke(); c.fillStyle = 'rgba(255,255,255,0.7)'; c.beginPath(); c.moveTo(i * 22 + 11, 5); c.lineTo(i * 22 + 7, 18); c.lineTo(i * 22 + 11, 18); c.closePath(); c.fill(); }
           c.fillStyle = '#3a3558'; c.fillRect(0, 21, n * 22, 3);
         }), 0.5, 1).setDepth(4);
-        L.img.x = o.x + (o.w ?? 120) / 2; o.w = n * 22; L.img.x = o.x + o.w / 2;
+        o.w = n * 22; L.img.x = o.x + o.w / 2;
         if (o.flip) L.img.setFlipY(true).setOrigin(0.5, 0);
         break;
       }
@@ -89,6 +89,7 @@ export class Obstacles {
         }), 0.5, 1).setDepth(4);
         if (o.w && o.w > 44) L.img.setScale(o.w / 44, 1);
         if (o.tint) L.img.setTint(o.tint);
+        L.baseSy = L.img.scaleY;
         break;
       }
       case 'belt': {
@@ -126,6 +127,7 @@ export class Obstacles {
           c.fillStyle = '#ffd23f'; c.beginPath(); ell(c, 24, 36, 5, 5); c.fill(); c.lineWidth = 1.8; c.strokeStyle = INK; c.stroke();
         }), 0.5, 1).setDepth(4).setFlipX((o.dir ?? 1) < 0);
         L.fireT = 1 + (o.phase ?? 0);
+        L.baseSx = L.img.scaleX;
         break;
       }
       case 'pillar': {
@@ -181,7 +183,7 @@ export class Obstacles {
   update(dt: number): void {
     const h = this.hero;
     const hr = new Phaser.Geom.Rectangle(h.body.x, h.body.y, h.body.width, h.body.height);
-    h.drift = 0; h.stuck = false;
+    h.stuck = false;
     for (const L of this.list) {
       const o = L.o; L.t += dt;
       switch (o.kind) {
@@ -210,14 +212,17 @@ export class Obstacles {
         case 'spring': {
           const w = o.w ?? 44;
           if (h.body.velocity.y >= 0 && h.x > o.x - w / 2 - 6 && h.x < o.x + w / 2 + 6 && h.y > o.y - 16 && h.y < o.y + 10) {
-            h.launch(-1010); sfx.dash(); this.hk.fx.ring(o.x, o.y - 10, 0xffd23f, 50, 300); this.scene.tweens.add({ targets: L.img, scaleY: (L.img as Phaser.GameObjects.Image).scaleY * 0.6, yoyo: true, duration: 90 });
+            h.launch(-1010); sfx.dash(); this.hk.fx.ring(o.x, o.y - 10, 0xffd23f, 50, 300);
+            const img = L.img as Phaser.GameObjects.Image, sy = L.baseSy ?? img.scaleY;
+            this.scene.tweens.killTweensOf(img); img.setScale(img.scaleX, sy);
+            this.scene.tweens.add({ targets: img, scaleY: sy * 0.6, yoyo: true, duration: 90 });
           }
           break;
         }
         case 'belt': {
           const w = o.w ?? 200, t = L.extra?.[0] as Phaser.GameObjects.TileSprite;
           t.tilePositionX -= (o.dir ?? 1) * 40 * dt * 2;
-          if (h.grounded && h.x > o.x && h.x < o.x + w && Math.abs(h.y - o.y) < 6) h.drift = (o.dir ?? 1) * 125;
+          if (h.grounded && h.x > o.x && h.x < o.x + w && Math.abs(h.y - o.y) < 6) h.drift += (o.dir ?? 1) * 125;
           break;
         }
         case 'fan': {
@@ -242,7 +247,9 @@ export class Obstacles {
             const def: ProjDef = enemyShot(pink ? 'pink' : 'packet', dir, { x: o.x, y: o.y - 30 }, { x: h.x, y: h.y });
             this.hk.spawnProj(new Proj(this.scene, def, o.x + dir * 36, o.y - 31));
             this.hk.fx.ring(o.x + dir * 40, o.y - 31, pink ? 0xff7ac8 : 0xffffff, 28, 200); sfx.swing(0);
-            this.scene.tweens.add({ targets: L.img, scaleX: (L.img as Phaser.GameObjects.Image).scaleX * 0.9, yoyo: true, duration: 80 });
+            const img = L.img as Phaser.GameObjects.Image, sx = L.baseSx ?? img.scaleX;
+            this.scene.tweens.killTweensOf(img); img.setScale(sx, img.scaleY);
+            this.scene.tweens.add({ targets: img, scaleX: sx * 0.9, yoyo: true, duration: 80 });
           }
           break;
         }

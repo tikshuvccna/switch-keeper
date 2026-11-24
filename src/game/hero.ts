@@ -101,7 +101,7 @@ export class Hero {
     if (this.invuln > 0 || this.state === 'asleep' || this.state === 'magic') return false;
     this.hp -= dmg; this.invuln = 1.1; this.comboCount = 0;
     this.state = 'hurt'; this.hurtT = 0.3; this.attackStage = 0;
-    this.body.setVelocity((this.x >= from ? 1 : -1) * 290, -310);
+    this.body.setVelocity((this.x >= from ? 1 : -1) * 290, this.flipped ? 310 : -310);
     if (this.hp <= 0) { this.hp = 0; this.state = 'asleep'; }
     return true;
   }
@@ -109,7 +109,7 @@ export class Hero {
   launch(vy: number): void { this.body.setVelocityY(vy); this.airJumps = 1; this.squash = 0.3; }
   respawn(x: number, y: number): void {
     this.hp = this.maxHp; this.invuln = 1.6; this.state = 'free'; this.body.setAllowGravity(!this.env.fly); this.meter = Math.min(this.meter, 50); this.comboCount = 0;
-    this.sprite.setPosition(x, y); this.body.setVelocity(0, 0); this.body.setAllowGravity(true);
+    this.sprite.setPosition(x, y); this.body.setVelocity(0, 0);
   }
   setMaxHp(n: number, heal = false): void { this.maxHp = n; if (heal || this.hp > n) this.hp = Math.min(n, heal ? n : this.hp); }
 
@@ -235,9 +235,9 @@ export class Hero {
     p.root.setPosition(Math.round(this.x), Math.round(this.y) - (this.flipped ? this.def.bodyH * this.scaleK : 0) + (this.state === 'asleep' ? 2 : 0));
     p.root.setScale(this.facing * s * (1 - sq * 0.6), fl * s * (1 + sq));
     p.root.setAngle(this.state === 'asleep' ? 78 * this.facing : 0);
-    // the shadow stays on the floor under the hero and shrinks as it rises
-    const h = Math.max(0, this.groundY - this.y);
-    this.shadow.setPosition(this.x, this.groundY + 2).setScale(Math.max(0.35, 1 - h / 380)).setAlpha(Math.max(0.2, 0.8 - h / 420));
+    // the shadow stays on the floor (or ceiling when flipped) under the hero and shrinks as it rises
+    const h = Math.abs(this.groundY - this.y);
+    this.shadow.setPosition(this.x, this.groundY + (this.flipped ? -2 : 2)).setScale(Math.max(0.35, 1 - h / 380)).setAlpha(Math.max(0.2, 0.8 - h / 420));
     void dt;
   }
   destroy(): void { this.puppet.destroy(); this.shadow.destroy(); this.sprite.destroy(); }

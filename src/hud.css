@@ -73,3 +73,17 @@ body.playing #help { display: block; }
 #bulletbar span { font-weight: 900; font-size: 13px; color: #9bffc4; text-shadow: 0 2px 0 var(--ink); }
 #bulletbar div { width: 100%; height: 10px; border: 3px solid var(--ink); border-radius: 4px; background: #04140c; overflow: hidden; direction: ltr; }
 #bulletbar i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #2bff7a, #b8ffd8); }
+
+#bPause { position: fixed; top: max(8px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); width: 42px; height: 42px; border-radius: 12px; border: 3px solid var(--ink); background: #fff4dc; color: var(--ink); font-size: 18px; font-weight: 900; box-shadow: 0 4px 0 var(--ink); cursor: pointer; display: none; place-items: center; z-index: 15; padding: 0; }
+#bPause:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--ink); }
+body.playing #bPause { display: grid; }
+body.paused #bPause { display: none; }
+
+@media (max-width: 480px) {
+  #bAtk { width: 76px; height: 76px; font-size: 16px; right: 12px; bottom: 16px; }
+  #bJump { width: 66px; height: 66px; font-size: 14px; right: 12px; bottom: 100px; }
+  #bShoot { width: 58px; height: 58px; font-size: 13px; right: 94px; bottom: 16px; }
+  #bDash { width: 52px; height: 52px; font-size: 12px; right: 86px; bottom: 80px; }
+  #bMagic { width: 50px; height: 50px; font-size: 12px; right: 84px; bottom: 138px; }
+  #bExtra { width: 50px; height: 50px; font-size: 12px; right: 144px; bottom: 82px; }
+}

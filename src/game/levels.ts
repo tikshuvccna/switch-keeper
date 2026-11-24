@@ -111,7 +111,7 @@ export function layoutFor(def: StageDef): Layout {
       const len = 900; ground(x, x + len); props(x, x + len);
       [[60, 405], [200, 325], [340, 245], [480, 165], [650, 255], [790, 345]].forEach(([dx, y]) => { plat(x + dx, y, 100); coins(x + dx + 20, y - 34, 2, 30); });
       orb(x + 560, 230); if (!L.card && r() < 0.6) { plat(x + 400, 105, 90); L.card = [x + 445, 62]; }
-      place('hornhawk' in {} ? 'hornhawk' : pick(), x + 520, 60); x += len;
+      place('hornhawk', x + 520, 60); x += len;
     },
     // ---- snow
     icefloor() { const len = 980; ground(x, x + len); props(x, x + len); obs({ kind: 'spikes', x: x + 300, y: GROUND_Y, w: 66 }); obs({ kind: 'spikes', x: x + 620, y: GROUND_Y, w: 88 }); coins(x + 120, GROUND_Y - 40, 6, 44); place(pick(), x + 760, 90); place(pick(), x + 480, 60); x += len; },
@@ -240,7 +240,7 @@ export function layoutFor(def: StageDef): Layout {
     fan() {
       const len = 700; ground(x, x + len); props(x, x + len);
       obs({ kind: 'fan', x: x + 150, y: GROUND_Y, w: 80, len: 340 });
-      plat(x + 240, 190, 130); coins(x + 120, 280, 5, 0, 0); coins(x + 270, 156, 4, 28);
+      plat(x + 240, 190, 130); for (let k = 0; k < 5; k++) L.bits.push([x + 150, 410 - k * 42]); coins(x + 270, 156, 4, 28);
       if (!L.card && r() < 0.5) L.card = [x + 300, 150];
       place(pick(), x + 460); x += len;
     },
@@ -256,7 +256,7 @@ export function layoutFor(def: StageDef): Layout {
     while (px < x + len - 400) {
       const t = r();
       if (t < 0.45) { const h = 150 + r() * 120; obs({ kind: 'pillar', x: px, y: r() < 0.5 ? 0 : 540 - h, w: 70, h, tint: 0xffffff }); coins(px - 80, 200 + r() * 140, 4, 34, 40); }
-      else if (t < 0.7) { const ht = 130 + r() * 90, hb = 130 + r() * 90; obs({ kind: 'pillar', x: px, y: 0, w: 70, h: ht }); obs({ kind: 'pillar', x: px, y: 540 - hb, w: 70, h: hb }); coins(px + 4, ht + 40, 3, 0, 0); }
+      else if (t < 0.7) { const ht = 130 + r() * 90, hb = 130 + r() * 90; obs({ kind: 'pillar', x: px, y: 0, w: 70, h: ht }); obs({ kind: 'pillar', x: px, y: 540 - hb, w: 70, h: hb }); for (let k = 0; k < 3; k++) L.bits.push([px + 35, ht + 36 + k * 34]); }
       else { foe(pool[Math.floor(r() * pool.length)], px, 130 + r() * 280, 120); foe(pool[Math.floor(r() * pool.length)], px + 120, 130 + r() * 280, 120); }
       if (Math.round((px - x) / 330) % 5 === 4) L.cps.push(px - 120);
       px += 300 + r() * 120;

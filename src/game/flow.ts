@@ -31,6 +31,7 @@ export function lessonPassed(areaId: string): boolean {
 
 export function play(id: string): void {
   if (!game) return;
+  document.body.classList.remove('paused');
   document.body.classList.add('playing');
   document.getElementById('screen')?.classList.add('hide');
   const sc = game.scene;
@@ -40,7 +41,7 @@ export function play(id: string): void {
 }
 export function toMenu(): void {
   if (!game) return;
-  document.body.classList.remove('playing');
+  document.body.classList.remove('playing', 'paused');
   const sc = game.scene;
   sc.getScenes(true).forEach((s) => sc.stop(s.scene.key));
   sc.start('menu');

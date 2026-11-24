@@ -157,7 +157,7 @@ export class Enemy {
         case 'thief': this.thief(dt, dx, near, awake); break;
       }
     }
-    if (this.state !== 'windup' || this.def.arch === 'flyer') this.dirToward(dx);
+    if ((this.state !== 'windup' || this.def.arch === 'flyer') && this.def.arch !== 'shooter' && this.retreat <= 0) this.dirToward(dx);
     this.view(dt);
   }
   private dirToward(dx: number): void { if (this.state === 'move' || this.state === 'windup' || this.state === 'attack') { if (Math.abs(dx) > 8 && (this.state !== 'move' || Math.abs(dx) < 330)) this.dir = dx > 0 ? 1 : -1; } }

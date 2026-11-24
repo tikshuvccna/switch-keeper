@@ -53,7 +53,7 @@ export function showMenuScreen(): void {
   col.append(btn('קרדיטים', 'slot', showCredits));
   r.append(col);
   const tag = el('div', 'bitsTag');
-  tag.textContent = save.bits + ' ביטים · רמה ' + save.level;
+  tag.textContent = (save.name ? save.name + ' · ' : '') + save.bits + ' ביטים · רמה ' + save.level;
   r.append(tag);
 }
 
@@ -89,16 +89,16 @@ export function showMap(): void {
     st.append(row);
     grid.append(st);
   }
-  body.append(grid, el('p', 'note', 'שלב 3 של כל אזור נגמר בשער נעול: צריך ללמוד את השיעור של האזור, לעבור בוחן ולנצח במשחק-הקטן כדי להיכנס אל הבוס.'));
+  body.append(grid, el('p', 'note', 'בכל אזור יש 4 שלבים ובוס. שלב 1 של כל אזור נגמר בשער נעול: לומדים אצל אורה, עוברים בוחן ומנצחים במשחק-הקטן כדי להמשיך.'));
 }
 
 // ------------------------------------------------------------------ the lesson tower
 export function showTower(): void {
   const { body } = panel('מגדל השיעורים');
-  body.append(el('p', 'note', 'כאן אפשר ללמוד שוב ולשחק שוב במשחקי-הקטנים. בשביל להיכנס לבוס של אזור צריך לעבור את השיעור שלו.'));
+  body.append(el('p', 'note', 'כאן אפשר ללמוד שוב ולשחק שוב במשחקי-הקטנים. כדי לפתוח את השער בסוף שלב 1 של אזור צריך לעבור את השיעור שלו.'));
   const list = el('div', 'lessons');
   for (const a of AREAS.filter((x) => x.lesson)) {
-    const l = lesson(a.lesson), ready = !!save.stages[a.id + '.1']?.stars || a.n === 1;
+    const l = lesson(a.lesson), ready = isOpen(a.id + '.1');
     const row = el('div', 'lrow' + (lessonPassed(a.id) ? ' done' : ''));
     row.append(el('b', '', 'שיעור ' + a.lesson.slice(1)), el('span', '', a.name), el('i', '', l.medal > 0 ? ['', 'ארד', 'כסף', 'זהב'][l.medal] : l.quiz ? 'בוחן עבר' : ''));
     const go = btn(ready ? 'ללמוד' : 'נעול', 'mini', () => { if (ready) openLesson(a.lesson, a.name, () => showTower()); });
@@ -179,17 +179,46 @@ export function showSkills(): void {
 }
 
 // ------------------------------------------------------------------ album
+const CARD_INFO: Record<string, [string, string]> = {
+  'market.1': ['כתובת MAC (48 ביטים)', 'כתובת פיזית הצרובה בכרטיס הרשת במפעל, כתובה ב-12 ספרות הקסדצימליות (6 בתים), ופועלת בשכבה 2.'],
+  'market.2': ['OUI ומספר סידורי', '3 הבתים הראשונים בכתובת MAC מזהים את יצרן כרטיס הרשת (OUI), ו-3 הבתים האחרונים הם המספר הסידורי.'],
+  'market.3': ['Unicast / Multicast / Broadcast', 'Unicast נשלח למחשב אחד (ספרה זוגית בבית הראשון), Multicast לקבוצה (אי-זוגית), ו-Broadcast לכולם: FF:FF:FF:FF:FF:FF.'],
+  'market.4': ['מבנה מסגרת Ethernet', 'הסדר בכבל: MAC יעד, MAC מקור, סוג/אורך (Type/Length), מידע (Data), ובסוף בדיקת שגיאות FCS.'],
+  'street.1': ['רכזת (Hub) ו-Half Duplex', 'רכזת מעתיקה כל מסגרת לכל הפורטים על ערוץ משותף אחד. רק מכשיר אחד משדר בכל רגע, ולכן יש התנגשויות.'],
+  'street.2': ['CSMA/CD', 'פרוטוקול גישה לערוץ משותף: מקשיבים לקו, משדרים כשפנוי, ואם קרתה התנגשות מגרילים זמן המתנה אקראי (Backoff).'],
+  'street.3': ['4 פעולות המתג', 'המתג לומד מכתובת המקור, מעביר (Forward) ליעד מוכר, מציף (Flood) ליעד לא מוכר או Broadcast, ומסנן (Filter) באותו פורט.'],
+  'street.4': ['טבלת MAC וזקנה (Aging)', 'שורה בטבלת MAC נמחקת כברירת מחדל אחרי 5 דקות (300 שניות) בלי תעבורה. צופים בה בפקודה show mac address-table.'],
+  'borders.1': ['אזור התנגשות (Collision Domain)', 'קבוצת מכשירים החולקים ערוץ שידור אחד. כל הפורטים של רכזת הם אזור אחד; כל פורט במתג הוא אזור התנגשות נפרד.'],
+  'borders.2': ['אזור Broadcast', 'הטווח שאליו מגיעה הודעת FF:FF:FF:FF:FF:FF. רכזת ומתג מעבירים Broadcast; רק נתב (Router) עוצר אותו.'],
+  'borders.3': ['Full Duplex', 'בחיבור למתג יש נתיב נפרד לשליחה ונתיב נפרד לקבלה בו-זמנית — ללא התנגשויות.'],
+  'borders.4': ['ספירת אזורי Broadcast', 'מסירים בראש את הנתבים מהתרשים: כל חלק שנשאר מחובר הוא אזור Broadcast אחד (ממשק נתב פעיל = אזור).'],
+  'tower.1': ['סערת Broadcast', 'כאשר הודעות Broadcast משוכפלות ללא סוף ברשת (למשל בלולאת מתגים), הן מציפות את כל רוחב הפס ומשביתות את הרשת.'],
+  'tower.2': ['שכבה 2 מול שכבה 3', 'שכבה 2 (מתג, MAC, מסגרת) מעבירה מידע בתוך אותה רשת מקומית; שכבה 3 (נתב, IP, חבילה) מנתבת בין רשתות שונות.'],
+  'tower.3': ['ריבוי כתובות בפורט מתג', 'לפורט אחד במתג יכולות להיות רשומות כמה כתובות MAC — למשל כאשר מחובר אליו מתג נוסף או רכזת.'],
+  'tower.4': ['סינון תעבורה (Filtering)', 'אם כתובת המקור וכתובת היעד יושבות על אותו פורט במתג, המתג מסנן וזורק את המסגרת כדי לחסוך תעבורה מיותרת.'],
+};
 export function showAlbum(): void {
-  const { body } = panel('אלבום קלפים');
-  body.append(el('p', 'note', 'בכל שלב מוסתר קלף ידע אחד. לפעמים צריך לקפוץ גבוה כדי להגיע אליו.'));
+  const { body } = panel('אלבום קלפים · מילון המתג');
+  body.append(el('p', 'note', 'בכל שלב מוסתר קלף ידע אחד. לחצו על קלף שנמצא כדי לקרוא את המושג.'));
   const g = el('div', 'album');
+  const detail = el('div', 'carddetail hide');
   for (const s of STAGES.filter((x) => !x.boss)) {
-    const got = save.cards.includes(s.area.id + '.' + s.n);
-    const c = el('div', 'kcard' + (got ? ' got' : ''));
+    const id = s.area.id + '.' + s.n, got = save.cards.includes(id);
+    const info = CARD_INFO[id];
+    const c = el('button', 'kcard' + (got ? ' got' : ''));
+    c.type = 'button';
     c.append(el('small', '', s.title), el('b', '', got ? '✉' : '?'));
+    if (got && info) {
+      c.onclick = () => {
+        sfx.click();
+        detail.classList.remove('hide');
+        detail.textContent = '';
+        detail.append(el('h4', '', info[0]), el('p', '', info[1]));
+      };
+    } else c.disabled = true;
     g.append(c);
   }
-  body.append(g, el('p', 'note', save.cards.length + ' מתוך ' + STAGES.filter((x) => !x.boss).length + ' קלפים'));
+  body.append(g, detail, el('p', 'note', save.cards.length + ' מתוך ' + STAGES.filter((x) => !x.boss).length + ' קלפים'));
 }
 
 // ------------------------------------------------------------------ settings and credits
@@ -253,6 +282,24 @@ export function showResult(r: { def: StageDef; stars: number; stats: Stats; bonu
   const row = el('div', 'row');
   if (r.nextId) row.append(btn('לשלב הבא', 'slot big', () => play(r.nextId as string)));
   row.append(btn('עוד פעם', 'slot', () => play(r.def.id)), btn('למפה', 'slot', () => { toMenu(); setTimeout(showMap, 30); }));
+  card.append(row);
+  s.append(card);
+}
+
+// ------------------------------------------------------------------ pause overlay
+export function showPauseScreen(def: StageDef, onResume: () => void, onRestart: () => void): void {
+  document.body.classList.add('paused');
+  const s = open();
+  s.className = 'result';
+  const card = el('div', 'ticket');
+  card.append(el('h2', '', 'המשחק מושהה'), el('p', 'note', def.title));
+  const row = el('div', 'row');
+  row.append(
+    btn('המשך', 'slot big', () => { document.body.classList.remove('paused'); hideScreen(); onResume(); }),
+    btn('התחל שלב מחדש', 'slot', () => { document.body.classList.remove('paused'); hideScreen(); onRestart(); }),
+    btn('למפה', 'slot', () => { document.body.classList.remove('paused'); toMenu(); setTimeout(showMap, 30); }),
+    btn('לתפריט הראשי', 'slot', () => { document.body.classList.remove('paused'); toMenu(); }),
+  );
   card.append(row);
   s.append(card);
 }

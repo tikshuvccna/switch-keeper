@@ -40,9 +40,9 @@ export class Boss {
   private called = [false, false];
   onDead?: () => void;
 
-  constructor(private scene: Phaser.Scene, readonly id: 'hubhog' | 'flooder' | string, x: number, private x0: number, private x1: number, private hooks: BossHooks) {
+  constructor(private scene: Phaser.Scene, readonly id: 'hubhog' | 'flooder' | 'borderking' | 'storm' | string, x: number, private x0: number, private x1: number, private hooks: BossHooks) {
     this.rig = enemyRig(id) ?? placeholder(id);
-    this.hp = this.maxHp = id === 'flooder' ? 36 : 30;
+    this.hp = this.maxHp = id === 'storm' ? 42 : id === 'flooder' || id === 'borderking' ? 36 : 30;
     const w = this.rig.body.w, h = this.rig.body.h;
     this.sprite = scene.physics.add.sprite(x, GROUND_Y, 'spark').setVisible(false).setOrigin(0.5, 1);
     const b = this.sprite.body as Phaser.Physics.Arcade.Body;
@@ -69,8 +69,10 @@ export class Boss {
     this.hp -= dmg; this.flash = 0.09;
     if (this.hp <= 0) { this.alive = false; this.dying = 2.2; this.set('dead'); this.body.setVelocity(0, 0); return 'dead'; }
     this.phase = this.hp < this.maxHp * 0.34 ? 2 : this.hp < this.maxHp * 0.67 ? 1 : 0;
-    if (this.phase >= 1 && !this.called[0] && !this.flooder) { this.called[0] = true; this.hooks.say('הבוס קורא לעזרה!'); this.hooks.spawn('crate', this.x - 260); this.hooks.spawn('crate', this.x + 260); }
-    if (this.phase >= 2 && !this.called[1] && !this.flooder) { this.called[1] = true; this.hooks.spawn('crate', this.x - 160); this.hooks.spawn('crate', this.x + 160); }
+    const add1 = this.id === 'borderking' ? 'hornhawk' : this.id === 'storm' ? 'stormling' : 'crate';
+    const add2 = this.id === 'borderking' ? 'gatewarden' : this.id === 'storm' ? 'stormling' : 'crate';
+    if (this.phase >= 1 && !this.called[0] && !this.flooder) { this.called[0] = true; this.hooks.say('הבוס קורא לעזרה!'); this.hooks.spawn(add1, Math.max(this.x0 + 100, this.x - 240)); this.hooks.spawn(add1, Math.min(this.x1 - 100, this.x + 240)); }
+    if (this.phase >= 2 && !this.called[1] && !this.flooder) { this.called[1] = true; this.hooks.say('שלב אחרון! היזהרו!'); this.hooks.spawn(add2, Math.max(this.x0 + 100, this.x - 160)); this.hooks.spawn(add2, Math.min(this.x1 - 100, this.x + 160)); }
     return 'hit';
   }
 
@@ -103,27 +105,59 @@ export class Boss {
   private stunBy(s: number): void { this.set('jam'); this.hooks.shake(0.02); this.hooks.sound('boom'); this.t = 1.5 - s; }
 
   private markFor(hero: Hero): void {
-    if (this.variant === 0) this.hooks.telegraph(Math.min(this.x, hero.x) - 40, Math.max(this.x, hero.x) + 40, GROUND_Y, 0.75);
+    if (this.id === 'borderking' && this.variant === 0) {
+      this.slamX = hero.x;
+      this.hooks.telegraph(hero.x - 160, hero.x - 80, GROUND_Y, 0.8);
+      this.hooks.telegraph(hero.x + 80, hero.x + 160, GROUND_Y, 0.8);
+    } else if (this.id === 'storm' && this.variant === 1) {
+      this.hooks.telegraph(this.x0 + 80, this.x1 - 80, GROUND_Y, 0.85);
+    } else if (this.variant === 0) this.hooks.telegraph(Math.min(this.x, hero.x) - 40, Math.max(this.x, hero.x) + 40, GROUND_Y, 0.75);
     else if (this.variant === 2) { this.slamX = hero.x; this.hooks.telegraph(hero.x - 90, hero.x + 90, GROUND_Y, 0.7); }
     else this.hooks.telegraph(this.x - 400, this.x + 400, GROUND_Y, 0.9);
   }
   private begin(hero: Hero, nowMs: number): void {
     this.set('attack'); this.dir = hero.x > this.x ? 1 : -1;
-    if (this.variant === 0) { this.charge = 0.95 + this.phase * 0.2; this.vx = this.dir * (430 + this.phase * 40); }
-    else if (this.variant === 1) {            // the belly-shout: rings along the floor
+    if (this.id === 'borderking' && this.variant === 0) {
+      // Border King: drops twin boundary barriers on both sides of the hero
+      this.hooks.sound('boom'); this.hooks.shake(0.015);
+      for (const off of [-120, 120]) {
+        const bx = Phaser.Math.Clamp(this.slamX + off, this.x0 + 80, this.x1 - 80);
+        this.hooks.ring(bx, GROUND_Y - 40, 0x2f6fd1, 120);
+        this.hooks.hazard({ rect: new Phaser.Geom.Rectangle(bx - 36, GROUND_Y - 190, 72, 190), from: nowMs, until: nowMs + 650, kind: 'floor', dmg: 1, vx: 0 });
+      }
+      this.charge = 0.65; this.vx = 0;
+    } else if (this.id === 'storm' && this.variant === 1) {
+      // Broadcast Storm: sky barrage + outward rings
+      this.hooks.sound('roar'); this.hooks.shake(0.018);
+      const bolts = 5 + this.phase * 2;
+      for (let k = 0; k < bolts; k++) {
+        const px = this.x0 + 120 + Math.random() * (this.x1 - this.x0 - 240);
+        this.hooks.hazard({ rect: new Phaser.Geom.Rectangle(px, 20 - k * 36, 26, 36), from: nowMs + k * 190, until: nowMs + 3200 + k * 190, kind: 'air', dmg: 1, vx: 0 });
+      }
+      for (const d of [-1, 1]) this.hooks.hazard({ rect: new Phaser.Geom.Rectangle(this.x, GROUND_Y - 46, 46, 46), from: nowMs + 200, until: nowMs + 4200, kind: 'floor', dmg: 1, vx: d * 300 });
+    } else if (this.variant === 0) {
+      const spd = this.id === 'storm' ? 500 + this.phase * 50 : 430 + this.phase * 40;
+      this.charge = 0.95 + this.phase * 0.2; this.vx = this.dir * spd;
+    } else if (this.variant === 1) {            // the belly-shout / horn wave: rings along the floor
       this.hooks.sound('roar'); this.hooks.shake(0.012);
-      const n = 1 + this.phase;
-      for (const d of [-1, 1]) for (let k = 0; k < n; k++) this.hooks.hazard({ rect: new Phaser.Geom.Rectangle(this.x, GROUND_Y - 46, 46, 46), from: nowMs + k * 480, until: nowMs + 4200 + k * 480, kind: 'floor', dmg: 1, vx: d * 250 });
-    } else { this.airborne = true; this.body.setVelocity((this.slamX - this.x) * 1.2, -620); }
+      const n = 1 + this.phase, rvx = this.id === 'borderking' ? 300 : 250;
+      for (const d of [-1, 1]) for (let k = 0; k < n; k++) this.hooks.hazard({ rect: new Phaser.Geom.Rectangle(this.x, GROUND_Y - 46, 46, 46), from: nowMs + k * 460, until: nowMs + 4200 + k * 460, kind: 'floor', dmg: 1, vx: d * rvx });
+    } else {
+      this.airborne = true;
+      this.body.setVelocity((this.slamX - this.x) * 1.25, this.id === 'storm' ? -680 : -620);
+    }
   }
   private attack(dt: number, hero: Hero, nowMs: number): void {
     const b = this.body;
     if (this.variant === 0) { this.charge -= dt; b.setVelocityX(this.vx); if (this.charge <= 0) { this.cool = 1.4 - this.phase * 0.25; this.set('idle'); } }
-    else if (this.variant === 1) { if (this.t > 0.9) { this.cool = 1.4 - this.phase * 0.25; this.set('idle'); } }
+    else if (this.variant === 1) { if (this.t > (this.id === 'storm' ? 1.15 : 0.9)) { this.cool = 1.4 - this.phase * 0.25; this.set('idle'); } }
     else {
       if (this.airborne && this.t > 0.2 && (b.blocked.down || b.touching.down)) {
-        this.airborne = false; this.hooks.shake(0.02); this.hooks.sound('boom'); this.hooks.ring(this.x, GROUND_Y - 6, 0xffd23f, 170);
-        this.hooks.hazard({ rect: new Phaser.Geom.Rectangle(this.x - 170, GROUND_Y - 36, 340, 36), from: nowMs, until: nowMs + 240, kind: 'floor', dmg: 1, vx: 0 });
+        this.airborne = false; this.hooks.shake(0.02); this.hooks.sound('boom');
+        const rad = this.id === 'storm' ? 210 : 170;
+        this.hooks.ring(this.x, GROUND_Y - 6, this.id === 'storm' ? 0xb79cff : 0xffd23f, rad);
+        this.hooks.hazard({ rect: new Phaser.Geom.Rectangle(this.x - rad, GROUND_Y - 36, rad * 2, 36), from: nowMs, until: nowMs + 260, kind: 'floor', dmg: 1, vx: 0 });
+        if (this.id === 'storm') for (const d of [-1, 1]) this.hooks.hazard({ rect: new Phaser.Geom.Rectangle(this.x, GROUND_Y - 46, 46, 46), from: nowMs + 100, until: nowMs + 3600, kind: 'floor', dmg: 1, vx: d * 280 });
         b.setVelocityX(0); this.set('jam'); this.t = 0.6;                        // landed: a short window
         this.cool = 1.3 - this.phase * 0.2;
       }

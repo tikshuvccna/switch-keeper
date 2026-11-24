@@ -5,7 +5,7 @@
  * (in games.ts) a three-level mini-game.
  */
 export interface Check { q: string; options: string[]; correct: number; explain: string }
-export type WidgetId = 'mac' | 'cast' | 'frame' | 'switch' | 'csma' | 'domains' | 'nic' | 'layers' | 'hubvs' | 'none';
+export type WidgetId = 'mac' | 'cast' | 'frame' | 'switch' | 'csma' | 'domains' | 'nic' | 'layers' | 'hubvs' | 'cli' | 'none';
 export interface Step { title: string; text: string[]; /** The key idea of the step, shown in a box. */ bullets?: string[]; widget: WidgetId; check: Check }
 export interface Lesson { id: string; num: number; title: string; gameName: string; steps: Step[]; quiz: Check[]; pass: number }
 
@@ -98,9 +98,9 @@ export const LESSONS: Record<string, Lesson> = {
       },
       {
         title: 'טבלת MAC: הרבה כתובות בפורט אחד',
-        text: ['לפורט אחד במתג יכולות להיות כמה כתובות MAC, למשל כשמאחוריו מחובר מתג אחר או רכזת. הטבלה שומרת את כולן עם אותו מספר פורט.', 'שורה בטבלה נמחקת אחרי 5 דקות בלי תעבורה (ברירת מחדל), כדי שהטבלה לא תתמלא בכתובות ישנות. את הטבלה רואים בפקודה show mac-address-table.'],
-        bullets: ['כמה כתובות יכולות לשבת על פורט אחד', 'שורה נמחקת אחרי 5 דקות בלי תעבורה', 'show mac-address-table מציגה את הטבלה'],
-        widget: 'none',
+        text: ['לפורט אחד במתג יכולות להיות כמה כתובות MAC, למשל כשמאחוריו מחובר מתג אחר או רכזת. הטבלה שומרת את כולן עם אותו מספר פורט.', 'שורה בטבלה נמחקת אחרי 5 דקות בלי תעבורה (ברירת מחדל), כדי שהטבלה לא תתמלא בכתובות ישנות. את הטבלה רואים בפקודה show mac address-table (או show mac-address-table). נסו להריץ את הפקודה בטרמינל למטה!'],
+        bullets: ['כמה כתובות יכולות לשבת על פורט אחד', 'שורה נמחקת אחרי 5 דקות בלי תעבורה', 'show mac address-table מציגה את הטבלה'],
+        widget: 'cli',
         check: { q: 'אחרי כמה דקות בלי תעבורה נמחקת שורה בטבלת MAC (ברירת מחדל)?', options: ['1', '5', '30', '60'], correct: 1, explain: 'ברירת המחדל היא 5 דקות.' },
       },
       {

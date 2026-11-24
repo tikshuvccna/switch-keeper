@@ -101,7 +101,9 @@ export function openLesson(id: string, areaTitle: string, done: (r: LessonResult
       list.append(b);
     });
     body.append(list);
-    const fin = el('button', 'slot big', st.quiz && st.medal > 0 ? 'חזרה למשחק' : 'חזרה'); fin.type = 'button'; fin.onclick = () => close(); body.append(fin);
+    const fin = el('button', 'slot big', st.quiz && st.medal > 0 ? 'חזרה למשחק' : 'חזרה'); fin.type = 'button'; fin.onclick = () => close();
+    const rev = el('button', 'slot', 'חזרה לצעדי השיעור'); rev.type = 'button'; rev.onclick = () => { sfx.click(); steps(0); };
+    body.append(fin, rev);
   };
   const play = (lv: number) => {
     const body = frame('משחק: ' + L.gameName + ' · ' + LEVELS[lv].name, '');

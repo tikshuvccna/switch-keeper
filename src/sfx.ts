@@ -32,9 +32,39 @@ export const sfx = {
   nope: () => tone(160, 100, 0.15, 'square', 0.06),
   level: () => { tone(500, 1000, 0.15, 'triangle', 0.08); setTimeout(() => tone(700, 1400, 0.2, 'triangle', 0.08), 130); },
 };
-export function unlockAudio(): void { ctx(); }
+export function unlockAudio(): void { ctx(); startMusic(); }
 
-/** Master volumes (0..1); the effects use sound, music is not used by this module yet. */
+/** Master volumes (0..1). */
 let sfxVol = 1;
-export function setVolumes(_music: number, sound: number): void { sfxVol = sound; }
+let musicVol = 1;
+let musicTimer: number | null = null;
+let musicStep = 0;
+
+// Gentle postal-town chiptune loop (pentatonic melody + soft bass)
+const MELODY = [523.25, 0, 587.33, 659.25, 783.99, 0, 659.25, 587.33, 523.25, 0, 440, 523.25, 587.33, 0, 0, 0];
+const BASS = [130.81, 0, 130.81, 0, 146.83, 0, 146.83, 0, 110, 0, 110, 0, 146.83, 0, 196, 0];
+
+function musicNote(freq: number, dur: number, type: OscillatorType, vol: number): void {
+  const a = ctx();
+  if (!a || a.state !== 'running' || musicVol <= 0.001 || document.hidden) return;
+  const o = a.createOscillator(), g = a.createGain(), t = a.currentTime;
+  o.type = type; o.frequency.setValueAtTime(freq, t);
+  const peak = Math.max(0.0002, vol * musicVol);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(peak, t + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur + 0.02);
+}
+
+function startMusic(): void {
+  if (musicTimer !== null) return;
+  musicTimer = window.setInterval(() => {
+    if (musicVol <= 0.001 || document.hidden) return;
+    const i = musicStep++ % MELODY.length;
+    if (MELODY[i]) musicNote(MELODY[i], 0.24, 'triangle', 0.024);
+    if (BASS[i]) musicNote(BASS[i], 0.3, 'sine', 0.032);
+  }, 280);
+}
+
+export function setVolumes(music: number, sound: number): void { musicVol = music; sfxVol = sound; if (musicVol > 0) startMusic(); }
 export const volume = (): number => sfxVol;

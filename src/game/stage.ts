@@ -23,6 +23,7 @@ import { GROUND_Y, layoutFor, stageById, type Layout, type StageDef } from './le
 import { flow, lessonPassed } from './flow';
 import { bonuses } from './progress';
 import { save, store } from './save';
+import { hideScreen, showPauseScreen } from '../ui';
 
 /** A texture drawn with a function at 2x resolution (cached by key). */
 function texd(scene: Phaser.Scene, key: string, w: number, h: number, f: (c: CanvasRenderingContext2D) => void, _res = 2): string { return tex(scene, key, mk(w, h, f, 2), 2); }
@@ -218,10 +219,22 @@ export class Stage extends Phaser.Scene {
       this.bulletBar = document.createElement('div'); this.bulletBar.id = 'bulletbar'; this.bulletBar.innerHTML = '<span>זמן (B)</span><div><i></i></div>'; document.body.appendChild(this.bulletBar);
       this.tintGlow = this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x2bff7a, 0).setOrigin(0, 0).setScrollFactor(0).setDepth(52);
     }
-    this.events.once('shutdown', () => { this.bulletBar?.remove(); this.bulletBar = null; (document.getElementById('bExtra') as HTMLElement).classList.add('hide'); });
+    const onJam = (x: number, y: number) => { sfx.jam(); this.fx.hit(x, y, 0xffe45c); this.fx.text(x, y - 20, 'שיבוש!', '#ffe45c', 26); };
+    this.events.on('jam', onJam);
+    const onPause = () => this.togglePause();
+    const bPause = document.getElementById('bPause');
+    window.addEventListener('sk-pause', onPause);
+    bPause?.addEventListener('click', onPause);
+    this.events.once('shutdown', () => {
+      this.events.off('jam', onJam);
+      window.removeEventListener('sk-pause', onPause);
+      bPause?.removeEventListener('click', onPause);
+      document.body.classList.remove('paused');
+      this.bulletBar?.remove(); this.bulletBar = null;
+      (document.getElementById('bExtra') as HTMLElement).classList.add('hide');
+    });
     toast(this.wd.hint, true, 4);
     if (this.def.boss) this.setupBoss();
-    this.events.on('jam', (x: number, y: number) => { sfx.jam(); this.fx.hit(x, y, 0xffe45c); this.fx.text(x, y - 20, 'שיבוש!', '#ffe45c', 26); });
     (window as unknown as { __sk: unknown }).__sk = { scene: this, hero: h, enemies: this.enemies, inp, save };
     flow.onStage(this);
   }
@@ -394,7 +407,12 @@ export class Stage extends Phaser.Scene {
       else if (h.def.magic === 'bind' && d < 520) { e.jam = Math.max(e.jam, 4); this.fx.text(e.x, e.y - 50, 'נקשר!', '#4fd1c5', 24); this.fx.hit(e.x, e.y - 20, 0x4fd1c5); }
       else if (h.def.magic === 'broadcast' && Math.abs(e.x - h.x) < 560) this.damage(e, 4, 380);
     }
-    if (this.boss && this.boss.alive && Math.abs(this.boss.x - h.x) < 560) this.boss.hit(h.def.magic === 'bind' ? 2 : 4);
+    if (this.boss && this.boss.alive && Math.abs(this.boss.x - h.x) < 560) {
+      const res = this.boss.hit(h.def.magic === 'bind' ? 2 : 4);
+      this.fx.hit(this.boss.x, this.boss.y - 60, color, res !== 'blocked');
+      if (res === 'blocked') { sfx.bit(); this.fx.text(this.boss.x, this.boss.y - this.boss.rig.body.h - 10, 'שריון! חכו שייפתח', '#c8c3d6', 18); }
+      else sfx.hit();
+    }
   }
 
   private damage(e: Enemy, dmg: number, push: number, stage = 2): void {
@@ -424,11 +442,13 @@ export class Stage extends Phaser.Scene {
   gainXp(n: number): void {
     save.xp += n;
     let need = 40 + save.level * 30;
+    let leveled = false;
     while (save.xp >= need) {
-      save.xp -= need; save.level++; save.skillPoints++; need = 40 + save.level * 30;
+      save.xp -= need; save.level++; save.skillPoints++; need = 40 + save.level * 30; leveled = true;
       sfx.level(); toast('רמה ' + save.level + '!', true); this.fx.text(this.hero.x, this.hero.y - 120, 'רמה ' + save.level, '#8be37d', 30);
       this.applyProgress();
     }
+    if (leveled) store();
   }
 
   /** Phaser's frame loop stops for good if an update throws, so a failure here must never escape. */
@@ -445,17 +465,18 @@ export class Stage extends Phaser.Scene {
     if (this.hitstop > 0) { this.hitstop -= dt; this.physics.world.pause(); if (this.hitstop <= 0) this.physics.world.resume(); dt *= 0.1; }
     this.clock += dt;
     this.stormClock(dt);
+    h.drift = 0;
     this.worldTick(dt);
     const sdt = dt * this.slow;                       // bullet time slows everything except the hero
 
     h.onOneWay = this.oneWay.some((p) => Math.abs(h.y - p.y) < 6 && h.x > p.x - 8 && h.x < p.x + p.displayWidth + 8);
-    h.groundY = this.groundBelow(h.x, h.y);
+    h.groundY = this.groundBelow(h.x, h.y, h.flipped);
     input.aim = input.mouseOn ? Math.sign(this.input.activePointer.worldX - h.x) : 0;
+    this.obstacles?.update(sdt);
     h.update(dt);
 
     for (const e of this.enemies) { e.update(sdt, h, this.enemies); if (this.slow < 1) { e.body.setVelocityX(e.body.velocity.x * this.slow); if (e.def.fly) e.body.setVelocityY(e.body.velocity.y * this.slow); } }
     this.updateProjs(sdt);
-    this.obstacles?.update(sdt);
     for (let i = this.enemies.length - 1; i >= 0; i--) if (!this.enemies[i].alive && !this.enemies[i].puppet.root.active) this.enemies.splice(i, 1);
 
     // the swing
@@ -501,12 +522,13 @@ export class Stage extends Phaser.Scene {
       toast('קלף ידע חדש נוסף לאלבום!', true); this.fx.hit(h.x, h.y - 60, 0xffd23f, true);
     }
     // checkpoints
-    this.layout.cps.forEach((x, i) => { if (h.x > x && i > this.checkpoint) { this.checkpoint = i; this.flags[i].setAlpha(1); toast('נקודת שמירה', true); sfx.bit(); this.fx.ring(x, GROUND_Y - 40, 0x4fd1c5, 60, 400); } });
+    this.layout.cps.forEach((x, i) => { if (h.x > x && i > this.checkpoint) { this.checkpoint = i; this.flags[i].setAlpha(1); store(); toast('נקודת שמירה', true); sfx.bit(); this.fx.ring(x, GROUND_Y - 40, 0x4fd1c5, 60, 400); } });
     // pits and sleep
     if (this.wd.id === 'lava' && h.y > 560 && this.lavaCool <= 0 && h.state !== 'asleep') { this.lavaCool = 0.9; h.hurt(h.x, 1); h.body.setVelocityY(-1100); this.fx.ring(h.x, 520, 0xff7a2e, 90, 420); sfx.hurt(); toast('לבה! קופצים החוצה', false); }
     if ((h.y > 700 || h.y < -260) && h.state !== 'asleep' && !this.wd.mech.fly) {
       this.falls++;
-      if (--h.hp <= 0) { h.hp = 0; h.state = 'asleep'; } else { this.respawn(); toast('נפלת לבור! חוזרים לנקודת השמירה', false); sfx.hurt(); }
+      const msg = h.y < -260 ? 'עפתם החוצה! חוזרים לנקודת השמירה' : 'נפלת לבור! חוזרים לנקודת השמירה';
+      if (--h.hp <= 0) { h.hp = 0; h.state = 'asleep'; } else { this.respawn(); toast(msg, false); sfx.hurt(); }
     }
     if (h.state === 'asleep') {
       this.asleepT += dt;
@@ -535,7 +557,9 @@ export class Stage extends Phaser.Scene {
     }
     // the exit
     const ex = this.layout.exit;
-    if (Math.abs(h.x - ex.x) < 70 && h.grounded && ex.kind !== 'boss') { if (take('upP')) this.useExit(); } else inp.upP = false;
+    if (Math.abs(h.x - ex.x) < 70 && (h.grounded || this.wd.mech.fly) && ex.kind !== 'boss') {
+      if (take('upP') || (this.wd.mech.fly && Math.abs(h.x - ex.x) < 44 && Math.abs(h.y - (GROUND_Y - 50)) < 110)) this.useExit();
+    } else inp.upP = false;
     if (this.bossHook) this.bossHook(dt);
     this.updateBoss(dt);
     this.hud();
@@ -544,7 +568,11 @@ export class Stage extends Phaser.Scene {
     const h = this.hero;
     hudUpdate({ hp: h.hp, maxHp: h.maxHp, meter: h.meter, xp: save.xp, xpNext: 40 + save.level * 30, level: save.level, bits: save.bits });
   }
-  private groundBelow(x: number, y: number): number {
+  private groundBelow(x: number, y: number, flipped = false): number {
+    if (flipped) {
+      for (const [a, b] of (this.layout.ceilings ?? [])) if (x > a - 4 && x < b + 4) return 64;
+      return -200;
+    }
     let best = 900;
     for (const [a, b] of this.layout.grounds) if (x > a - 4 && x < b + 4 && GROUND_Y >= y - 6) best = Math.min(best, GROUND_Y);
     for (const p of this.layout.plats) if (x > p.x && x < p.x + p.w && p.y >= y - 6) best = Math.min(best, p.y);
@@ -609,6 +637,22 @@ export class Stage extends Phaser.Scene {
     this.paused = true; this.physics.world.pause();
     const s = Math.round(this.clock);
     flow.finish(this, this.def, { time: s, kills: this.kills, bits: this.bitsGot, falls: this.falls, card: this.cardGot, hp: this.hero.hp / this.hero.maxHp });
+  }
+  private togglePause(): void {
+    if (!this.scene.isActive() || !document.getElementById('lessonsheet')?.classList.contains('hide')) return;
+    if (this.paused) {
+      if (document.body.classList.contains('paused')) {
+        document.body.classList.remove('paused');
+        hideScreen();
+        this.resume();
+      }
+      return;
+    }
+    this.paused = true;
+    this.physics.world.pause();
+    clearInput();
+    store();
+    showPauseScreen(this.def, () => this.resume(), () => flow.go(this.def.id));
   }
   resume(): void { this.paused = false; this.physics.world.resume(); }
   setBossHook(f: ((dt: number) => void) | null): void { this.bossHook = f; }

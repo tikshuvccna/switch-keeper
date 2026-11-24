@@ -36,8 +36,23 @@ const KEYS: Record<string, (down: boolean, repeat: boolean) => void> = {
 };
 
 export function initInput(): void {
-  window.addEventListener('keydown', (e) => { const f = KEYS[e.code]; if (f) { f(true, e.repeat); e.preventDefault(); } });
-  window.addEventListener('keyup', (e) => { const f = KEYS[e.code]; if (f) f(false, false); });
+  const isTyping = (t: EventTarget | null) => t instanceof HTMLElement && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
+  window.addEventListener('keydown', (e) => {
+    if (isTyping(e.target)) return;
+    if (e.code === 'Escape' && !e.repeat && document.body.classList.contains('playing') && document.getElementById('lessonsheet')?.classList.contains('hide')) {
+      e.preventDefault();
+      window.dispatchEvent(new Event('sk-pause'));
+      return;
+    }
+    if (!document.body.classList.contains('playing') || document.body.classList.contains('paused')) return;
+    const f = KEYS[e.code];
+    if (f) { f(true, e.repeat); e.preventDefault(); }
+  });
+  window.addEventListener('keyup', (e) => {
+    if (isTyping(e.target)) return;
+    const f = KEYS[e.code];
+    if (f) f(false, false);
+  });
   window.addEventListener('blur', clearInput);
   // the mouse: left = melee, right (hold) = shoot, middle = super; the hero faces the side of the pointer
   const game = () => document.getElementById('game') as HTMLElement;
